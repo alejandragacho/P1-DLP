@@ -46,21 +46,23 @@ s :
 
 term :
     appTerm
-      { $1 } (* Aplicaciones *)
+      { $1 }
   | IF term THEN term ELSE term
-      { TmIf ($2, $4, $6) } (* Condicionales *)
+      { TmIf ($2, $4, $6) } 
   | LAMBDA IDV COLON ty DOT term
-      { TmAbs ($2, $4, $6) } (* Lambda-abstracción *)
+      { TmAbs ($2, $4, $6) } 
   | LET IDV EQ term IN term
-      { TmLetIn ($2, $4, $6) } (* Declaración let *)
+      { TmLetIn ($2, $4, $6) } 
   | LETREC IDV COLON ty EQ term IN term
       { 
         TmLetIn ($2, 
           TmFix (TmAbs ($2, $4, $6)), 
           $8) 
-      } (* Declaración let recursiva *)
+      } 
+  | LAMBDA IDV COLON ty DOT term
+      { TmAbs ($2, $4, $6) }
   | Y
-      { TmY } (* Combinador de punto fijo *)
+      { TmY }
 
 appTerm :
     atomicTerm
