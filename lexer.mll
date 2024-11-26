@@ -17,7 +17,6 @@ rule token = parse
   | "pred"      { PRED }
   | "iszero"    { ISZERO }
   | "let"       { LET }
-  | "letrec"    { LETREC }
   | "in"        { IN }
   | "concat"    { CONCAT }
   | "Bool"      { BOOL }
@@ -37,7 +36,5 @@ rule token = parse
                 { let s = Lexing.lexeme lexbuf in
 				  STRINGV (String.sub s 1 (String.length s - 2)) }
   | eof         { EOF }
-  | _ as c -> print_endline ("Unknown token: " ^ String.make 1 c); raise Lexical_error
-
   | _           { raise Lexical_error }
 
