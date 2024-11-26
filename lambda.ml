@@ -190,6 +190,8 @@ let rec string_of_term ?(prec=0) = function
       let right = string_of_term ~prec:2 t2 in
       "concat(" ^ left ^ ", " ^ right ^ ")"
   | TmY -> "Y"
+  | _ -> "<unknown term>"
+
 
 
 
@@ -360,9 +362,6 @@ let rec eval1 tm = match tm with
   | TmApp (t1, t2) ->
       let t1' = eval1 t1 in
       TmApp (t1', t2)
-  |TmApp(TmY, t) ->
-      TmApp (t, TmApp (TmY, t))
-
     (* E-LetV *)
   | TmLetIn (x, v1, t2) when isval v1 ->
       subst x v1 t2
@@ -380,6 +379,8 @@ let rec eval1 tm = match tm with
   | TmFix t1 ->
       let t1' = eval1 t1 in
 	  TmFix t1'
+  | TmFix (TmAbs (x, _, t)) ->
+    subst x tm t
 	  
 	(* New rules for string *)
   | TmConcat (TmString s1, TmString s2) ->
