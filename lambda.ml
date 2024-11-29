@@ -6,10 +6,13 @@ type ty =
   | TyNat
   | TyArr of ty * ty
   | TyString
+  | TyTuple of ty list
+  | TyRecord of (string * ty) list
+  (* | TyList of ty *)
 ;;
 
-type context =
-  (string * ty) list
+type 'a context =
+  (string * 'a) list
 ;;
 
 type term =
@@ -27,7 +30,16 @@ type term =
   | TmFix of term
   | TmString of string
   | TmConcat of term * term
-  | TmY (*combinador de punto fijo*)
+  | TmY (*fixed-point combinator*)
+  (* Tuples *)
+  | TmTuple of term list
+  | TmProjection of term*string
+  | TmRecord of (string * term) list
+;;
+
+type command =
+  Eval of term
+  | Bind of string * term
 ;;
 
 
@@ -57,6 +69,18 @@ let rec string_of_ty ty = match ty with
       "(" ^ string_of_ty ty1 ^ ")" ^ " -> " ^ "(" ^ string_of_ty ty2 ^ ")"
   | TyString ->
       "String"
+  | TyTuple tyr ->
+      let rec print = function
+          [] -> ""
+          | (ty::[]) -> (string_of_ty ty)
+          | (ty::t) -> (string_of_ty ty) ^ ", " ^ print t
+      in "{" ^ (print tyr) ^ "}"
+  | TyRecord tyr ->
+      let rec print = function
+          [] -> ""
+          | ((s, ty)::[]) -> s ^ ":" ^ (string_of_ty ty)
+          | ((s, ty)::t) -> s ^ ":" ^ (string_of_ty ty) ^ "," ^ print t
+      in "{" ^ (print tyr) ^ "}"
 ;;
 
 exception Type_error of string
@@ -145,6 +169,31 @@ let rec typeof ctx tm = match tm with
   | TmConcat (t1, t2) ->
       if typeof ctx t1 = TyString && typeof ctx t2 = TyString then TyString
 	  else raise (Type_error "argument of concat is not a string")
+
+    (* T-Tuple *)
+  | TmTuple tmt ->
+      let rec get_types = function
+          [] -> []
+          | (tm::t) -> ((typeof ctx tm)::(get_types t))
+      in TyTuple (get_types tmt)
+      
+    (* T-Projection *)
+   | TmProjection (t, n) ->
+      (match (typeof ctx t, n) with
+          | (TyRecord (tyr), s) -> 
+              (try List.assoc s tyr with
+              _ -> raise (Type_error ("Projection error. Key " ^ s ^ " doesn't exist in the record")))
+          | (TyTuple (tyr), s) ->
+              (try List.nth tyr (int_of_string s - 1) with
+              _ -> raise (Type_error ("Projection error. Key " ^ s ^ " doesn't exist in the tuple")))
+          | _ -> raise (Type_error ("Projection error. Type can't be projected")))
+    
+    (* T-Record *)
+   | TmRecord tmr ->
+       let rec get_types = function
+           [] -> []
+           | ((s, tm)::t) -> ((s, typeof ctx tm)::(get_types t))
+       in TyRecord (get_types tmr) 
 ;;
 
 
@@ -190,10 +239,21 @@ let rec string_of_term ?(prec=0) = function
       let right = string_of_term ~prec:2 t2 in
       "concat(" ^ left ^ ", " ^ right ^ ")"
   | TmY -> "Y"
+  | TmTuple tmt ->
+      let rec print = function
+          [] -> ""
+          | (tm::[]) -> (string_of_term tm)
+          | (tm::t) -> (string_of_term tm) ^ ", " ^ print t
+      in "{" ^ (print tmt) ^ "}"
+  | TmProjection (t, n) ->
+      string_of_term t ^ "."  ^ n
+  | TmRecord tmr ->
+      let rec print = function
+          [] -> ""
+          | ((s, tm)::[]) -> s ^ "=" ^ (string_of_term tm)
+          | ((s, tm)::t) -> s ^ "=" ^ (string_of_term tm) ^ "," ^ print t
+      in "{" ^ (print tmr) ^ "}"
   | _ -> "<unknown term>"
-
-
-
 
 let rec ldif l1 l2 = match l1 with
     [] -> []
@@ -237,6 +297,18 @@ let rec free_vars tm = match tm with
       []
   | TmConcat (t1, t2) ->
       lunion (free_vars t1) (free_vars t2)
+  | TmTuple tmt ->
+      let rec get_free = function
+          [] -> []
+          | (tm::t) -> lunion (free_vars tm) (get_free t)
+      in get_free tmt
+  | TmProjection (t, n) ->
+      free_vars t
+  | TmRecord tmr ->
+      let rec get_free = function
+          [] -> []
+          | ((_, tm)::t) -> lunion (free_vars tm) (get_free t)
+      in get_free tmr
 ;;
 
 let rec fresh_name x l =
@@ -285,6 +357,18 @@ let rec subst x s tm = match tm with
       TmString st
   | TmConcat (t1, t2) ->
       TmConcat (subst x s t1, subst x s t2)
+  | TmTuple tmt ->
+      let rec sub_t = function
+          [] -> []
+          | (tm::t) -> (subst x s tm)::(sub_t t)
+      in TmTuple (sub_t tmt)
+  | TmProjection (t, n) ->
+      TmProjection (subst x s t, n)
+  | TmRecord tmr ->
+      let rec sub_r = function
+          [] -> []
+          | ((str, tm)::t) -> (str, (subst x s tm))::(sub_r t)
+      in TmRecord (sub_r tmr)
 ;;
 
 let rec isnumericval tm = match tm with
@@ -298,13 +382,16 @@ let rec isval tm = match tm with
   | TmFalse -> true
   | TmAbs _ -> true
   | t when isnumericval t -> true
+  | TmTuple l -> List.for_all(fun t -> isval(t)) l
+  | TmRecord [] -> true
+  | TmRecord l -> List.for_all(fun (s, t) -> isval(t)) l
   | _ -> false
 ;;
 
 exception NoRuleApplies
 ;;
 
-let rec eval1 tm = match tm with
+let rec eval1 ctx tm = match tm with
     (* E-IfTrue *)
     TmIf (TmTrue, t2, _) ->
       t2
@@ -315,12 +402,12 @@ let rec eval1 tm = match tm with
 
     (* E-If *)
   | TmIf (t1, t2, t3) ->
-      let t1' = eval1 t1 in
+      let t1' = eval1 ctx t1 in
       TmIf (t1', t2, t3)
 
     (* E-Succ *)
   | TmSucc t1 ->
-      let t1' = eval1 t1 in
+      let t1' = eval1 ctx t1 in
       TmSucc t1'
 
     (* E-PredZero *)
@@ -333,7 +420,7 @@ let rec eval1 tm = match tm with
 
     (* E-Pred *)
   | TmPred t1 ->
-      let t1' = eval1 t1 in
+      let t1' = eval1 ctx t1 in
       TmPred t1'
 
     (* E-IszeroZero *)
@@ -346,7 +433,7 @@ let rec eval1 tm = match tm with
 
     (* E-Iszero *)
   | TmIsZero t1 ->
-      let t1' = eval1 t1 in
+      let t1' = eval1 ctx t1 in
       TmIsZero t1'
 
     (* E-AppAbs *)
@@ -355,12 +442,12 @@ let rec eval1 tm = match tm with
 
     (* E-App2: evaluate argument before applying function *)
   | TmApp (v1, t2) when isval v1 ->
-      let t2' = eval1 t2 in
+      let t2' = eval1 ctx t2 in
       TmApp (v1, t2')
 
     (* E-App1: evaluate function before argument *)
   | TmApp (t1, t2) ->
-      let t1' = eval1 t1 in
+      let t1' = eval1 ctx t1 in
       TmApp (t1', t2)
     (* E-LetV *)
   | TmLetIn (x, v1, t2) when isval v1 ->
@@ -368,7 +455,7 @@ let rec eval1 tm = match tm with
 
     (* E-Let *)
   | TmLetIn(x, t1, t2) ->
-      let t1' = eval1 t1 in
+      let t1' = eval1 ctx t1 in
       TmLetIn (x, t1', t2)
 	
     (* E-FixBeta *)	
@@ -377,8 +464,9 @@ let rec eval1 tm = match tm with
 	  
     (* E-Fix *)
   | TmFix t1 ->
-      let t1' = eval1 t1 in
+      let t1' = eval1 ctx t1 in
 	  TmFix t1'
+
   | TmFix (TmAbs (x, _, t)) ->
     subst x tm t
 	  
@@ -387,22 +475,66 @@ let rec eval1 tm = match tm with
       TmString (s1 ^ s2)
 	  
   | TmConcat (TmString s1, t2) ->
-      let t2' = eval1 t2 in
+      let t2' = eval1 ctx t2 in
 	  TmConcat (TmString s1, t2')
 	  
   | TmConcat (t1, t2) ->
-      let t1' = eval1 t1 in
+      let t1' = eval1 ctx t1 in
 	  TmConcat (t1', t2)
+
+   (* E-Tuple *)
+  | TmTuple tmt ->
+      let rec eval_t = function
+          [] -> raise NoRuleApplies
+          | (tm::t) when isval tm -> tm::(eval_t t)
+          | (tm::t) -> (eval1 ctx tm)::t
+      in TmTuple (eval_t tmt)
+
+   (* E-Projection *)
+  | TmProjection (TmTuple l as v, s) when isval (v) ->
+      List.nth l (int_of_string s - 1)
+      
+  | TmProjection (TmRecord l as v, s) when isval(v) ->
+      List.assoc s l
+  
+  | TmProjection (TmRecord (tmr), n) ->
+      List.assoc n tmr
+
+  | TmProjection (t, n) ->
+      TmProjection ((eval1 ctx t), n)
+
+  | TmRecord tmr ->
+      let rec eval_r = function
+          | [] -> raise NoRuleApplies
+          | ((str, tm)::t) when isval tm -> (str, tm)::(eval_r t)
+          | ((str, tm)::t) -> (str, (eval1 ctx tm))::t
+      in TmRecord (eval_r tmr)
 
   | _ ->
       raise NoRuleApplies
 ;;
 
-let rec eval tm =
+let apply_ctx ctx tm =
+  List.fold_left (fun t x -> subst x (getbinding ctx x) t) tm (free_vars tm)
+
+let rec eval ctx tm =
   try
-    let tm' = eval1 tm in
-    eval tm'
+    let tm' = eval1 ctx tm in
+    eval ctx tm'
   with
-    NoRuleApplies -> tm
+    NoRuleApplies -> apply_ctx ctx tm
 ;;
 
+let execute (ctx, tctx) = function
+  Eval tm ->
+    let tyTm = typeof tctx tm in
+    let tm' = eval ctx tm in
+    print_endline("- : " ^ string_of_ty tyTm ^ " = " ^ string_of_term tm');
+    (ctx, tctx)
+  
+  | Bind (s, tm) ->
+    let tyTm = typeof tctx tm in
+    let tm' = eval ctx tm in
+    print_endline(s ^ " : " ^ string_of_ty tyTm ^ " = " ^ string_of_term tm');
+    (addbinding ctx s tm', addbinding tctx s tyTm)
+;;

@@ -20,33 +20,29 @@ let rec process_line line =
 
 let top_level_loop () =
   print_endline "Evaluator of lambda expressions...";
-  let rec loop ctx =
+  let rec loop (ctx, tctx) =
     print_string ">> ";
     flush stdout;
     try
       let line = trim (read_line ()) in
-      if String.length line = 0 then loop ctx
-      else
-        let input = process_line line in
-        let tm = s token (from_string input) in
-        print_endline ("Expression: " ^ string_of_term ~prec:0 tm);
-        let tyTm = typeof ctx tm in
-        print_endline ("Result: " ^ string_of_term ~prec:0 (eval tm) ^ " : " ^ string_of_ty tyTm);
-        loop ctx
+      if length line = 0 then loop (ctx, tctx)
+      else let entire_line = string_before (process_line line) (length line - 2) in
+      let c = s token (from_string(entire_line)) in
+      loop (execute (ctx, tctx) c)
     with
     | Lexical_error ->
         print_endline "lexical error";
-        loop ctx
+        loop (ctx, tctx)
     | Parse_error ->
         print_endline "syntax error";
-        loop ctx
+        loop (ctx, tctx)
     | Type_error e ->
         print_endline ("type error: " ^ e);
-        loop ctx
+        loop (ctx, tctx)
     | End_of_file ->
         print_endline "...bye!!!"
   in
-  loop emptyctx
+  loop (emptyctx, emptyctx)
 ;;
 
 top_level_loop ()

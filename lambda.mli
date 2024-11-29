@@ -4,10 +4,12 @@ type ty =
   | TyNat
   | TyArr of ty * ty
   | TyString
+  | TyTuple of ty list
+  | TyRecord of (string * ty) list
 ;;
 
-type context =
-  (string * ty) list
+type 'a context =
+  (string * 'a) list
 ;;
 
 type term =
@@ -26,17 +28,26 @@ type term =
   | TmString of string
   | TmConcat of term * term
   | TmY
+  | TmTuple of term list
+  | TmProjection of term * string
+  | TmRecord of (string * term) list
 ;;
 
-val emptyctx : context;;
-val addbinding : context -> string -> ty -> context;;
-val getbinding : context -> string -> ty;;
+type command =
+  Eval of term
+  | Bind of string * term
+;;
+
+val emptyctx : 'a context;;
+val addbinding : 'a context -> string -> 'a -> 'a context;;
+val getbinding : 'a context -> string -> 'a;;
 
 val string_of_ty : ty -> string;;
 exception Type_error of string;;
-val typeof : context -> term -> ty;;
+val typeof : ty context -> term -> ty;;
 
-val string_of_term : ?prec:int -> term -> string
+val string_of_term : ?prec:int -> term -> string;;
 exception NoRuleApplies;;
-val eval : term -> term;;
+val eval : term context -> term -> term;;
 
+val execute : term context * ty context -> command -> term context * ty context;;

@@ -25,6 +25,11 @@ rule token = parse
   | "letrec"    { LETREC }
   | '('         { LPAREN }
   | ')'         { RPAREN }
+  | '['         { LBRACK }
+  | ']'         { RBRACK }
+  | '['         { LBRACE }
+  | ']'         { RBRACE }
+  | ','         { COMMA }
   | '.'         { DOT }
   | '='         { EQ }
   | ':'         { COLON }
