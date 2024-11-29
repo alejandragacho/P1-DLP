@@ -72,15 +72,15 @@ let rec string_of_ty ty = match ty with
   | TyTuple tyr ->
       let rec print = function
           [] -> ""
-          | (ty::[]) -> (string_of_ty ty)
-          | (ty::t) -> (string_of_ty ty) ^ ", " ^ print t
-      in "{" ^ (print tyr) ^ "}"
+          | ty::[] -> string_of_ty ty
+          | ty::t -> string_of_ty ty ^ ", " ^ print t
+      in "{" ^ print tyr ^ "}"
   | TyRecord tyr ->
       let rec print = function
           [] -> ""
-          | ((s, ty)::[]) -> s ^ ":" ^ (string_of_ty ty)
-          | ((s, ty)::t) -> s ^ ":" ^ (string_of_ty ty) ^ "," ^ print t
-      in "{" ^ (print tyr) ^ "}"
+          | (s, ty)::[] -> s ^ ":" ^ string_of_ty ty
+          | (s, ty)::t -> s ^ ":" ^ string_of_ty ty ^ "," ^ print t
+      in "{" ^ print tyr ^ "}"
 ;;
 
 exception Type_error of string
@@ -174,16 +174,16 @@ let rec typeof ctx tm = match tm with
   | TmTuple tmt ->
       let rec get_types = function
           [] -> []
-          | (tm::t) -> ((typeof ctx tm)::(get_types t))
+          | tm::t -> typeof ctx tm :: get_types t
       in TyTuple (get_types tmt)
       
     (* T-Projection *)
    | TmProjection (t, n) ->
       (match (typeof ctx t, n) with
-          | (TyRecord (tyr), s) -> 
+          | TyRecord tyr, s -> 
               (try List.assoc s tyr with
               _ -> raise (Type_error ("Projection error. Key " ^ s ^ " doesn't exist in the record")))
-          | (TyTuple (tyr), s) ->
+          | TyTuple tyr, s ->
               (try List.nth tyr (int_of_string s - 1) with
               _ -> raise (Type_error ("Projection error. Key " ^ s ^ " doesn't exist in the tuple")))
           | _ -> raise (Type_error ("Projection error. Type can't be projected")))
@@ -192,8 +192,8 @@ let rec typeof ctx tm = match tm with
    | TmRecord tmr ->
        let rec get_types = function
            [] -> []
-           | ((s, tm)::t) -> ((s, typeof ctx tm)::(get_types t))
-       in TyRecord (get_types tmr) 
+           | (s, tm)::t -> (s, typeof ctx tm) :: get_types t
+       in TyRecord (get_types tmr)
 ;;
 
 
@@ -242,17 +242,17 @@ let rec string_of_term ?(prec=0) = function
   | TmTuple tmt ->
       let rec print = function
           [] -> ""
-          | (tm::[]) -> (string_of_term tm)
-          | (tm::t) -> (string_of_term tm) ^ ", " ^ print t
-      in "{" ^ (print tmt) ^ "}"
+          | tm::[] -> string_of_term tm
+          | tm::t -> string_of_term tm ^ ", " ^ print t
+      in "{" ^ print tmt ^ "}"
   | TmProjection (t, n) ->
       string_of_term t ^ "."  ^ n
   | TmRecord tmr ->
       let rec print = function
           [] -> ""
-          | ((s, tm)::[]) -> s ^ "=" ^ (string_of_term tm)
-          | ((s, tm)::t) -> s ^ "=" ^ (string_of_term tm) ^ "," ^ print t
-      in "{" ^ (print tmr) ^ "}"
+          | (s, tm)::[] -> s ^ "=" ^ string_of_term tm
+          | (s, tm)::t -> s ^ "=" ^ string_of_term tm ^ "," ^ print t
+      in "{" ^ print tmr ^ "}"
   | _ -> "<unknown term>"
 
 let rec ldif l1 l2 = match l1 with
@@ -300,14 +300,14 @@ let rec free_vars tm = match tm with
   | TmTuple tmt ->
       let rec get_free = function
           [] -> []
-          | (tm::t) -> lunion (free_vars tm) (get_free t)
+          | tm::t -> lunion (free_vars tm) (get_free t)
       in get_free tmt
   | TmProjection (t, n) ->
       free_vars t
   | TmRecord tmr ->
       let rec get_free = function
           [] -> []
-          | ((_, tm)::t) -> lunion (free_vars tm) (get_free t)
+          | (_, tm)::t -> lunion (free_vars tm) (get_free t)
       in get_free tmr
 ;;
 
@@ -360,14 +360,14 @@ let rec subst x s tm = match tm with
   | TmTuple tmt ->
       let rec sub_t = function
           [] -> []
-          | (tm::t) -> (subst x s tm)::(sub_t t)
+          | tm::t -> (subst x s tm)::sub_t t
       in TmTuple (sub_t tmt)
   | TmProjection (t, n) ->
       TmProjection (subst x s t, n)
   | TmRecord tmr ->
       let rec sub_r = function
           [] -> []
-          | ((str, tm)::t) -> (str, (subst x s tm))::(sub_r t)
+          | (str, tm)::t -> (str, (subst x s tm))::sub_r t
       in TmRecord (sub_r tmr)
 ;;
 
@@ -486,8 +486,8 @@ let rec eval1 ctx tm = match tm with
   | TmTuple tmt ->
       let rec eval_t = function
           [] -> raise NoRuleApplies
-          | (tm::t) when isval tm -> tm::(eval_t t)
-          | (tm::t) -> (eval1 ctx tm)::t
+          | tm::t when isval tm -> tm::(eval_t t)
+          | tm::t -> (eval1 ctx tm)::t
       in TmTuple (eval_t tmt)
 
    (* E-Projection *)
@@ -506,8 +506,8 @@ let rec eval1 ctx tm = match tm with
   | TmRecord tmr ->
       let rec eval_r = function
           | [] -> raise NoRuleApplies
-          | ((str, tm)::t) when isval tm -> (str, tm)::(eval_r t)
-          | ((str, tm)::t) -> (str, (eval1 ctx tm))::t
+          | (str, tm)::t when isval tm -> (str, tm)::(eval_r t)
+          | (str, tm)::t -> (str, (eval1 ctx tm))::t
       in TmRecord (eval_r tmr)
 
   | _ ->
