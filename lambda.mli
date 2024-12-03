@@ -31,6 +31,11 @@ type term =
   | TmTuple of term list
   | TmProjection of term * string
   | TmRecord of (string * term) list
+  | TmNil of ty
+  | TmCons of ty * term * term
+  | TmIsNil of ty * term
+  | TmHead of ty * term
+  | TmTail of ty * term
 ;;
 
 type command =
@@ -41,6 +46,8 @@ type command =
 val emptyctx : 'a context;;
 val addbinding : 'a context -> string -> 'a -> 'a context;;
 val getbinding : 'a context -> string -> 'a;;
+val add_global_def : string -> term -> unit;;
+val get_global_def : string -> term;;
 
 val string_of_ty : ty -> string;;
 exception Type_error of string;;
@@ -50,4 +57,6 @@ val string_of_term : ?prec:int -> term -> string;;
 exception NoRuleApplies;;
 val eval : term context -> term -> term;;
 
-val execute : term context * ty context -> command -> term context * ty context;;
+val execute :
+term context * ty context -> command -> term context * ty context;;
+
