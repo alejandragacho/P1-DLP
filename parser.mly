@@ -15,28 +15,39 @@
 %token LET
 %token LETREC
 %token IN
-%token CONCAT
 %token BOOL
 %token NAT
-%token STRING
 
+%token STRING
+%token UNIT
+%token UNITV
+%token LCOR
+%token RCOR
 %token LPAREN
 %token RPAREN
-%token LBRACK
-%token RBRACK
-%token LBRACE
-%token RBRACE
+%token LBRACKET
+%token RBRACKET 
+%token LIST
+%token NIL
+%token CONS
+%token ISNIL
+%token HEAD
+%token TAIL
 %token COMMA
+%token SEMICOLON
 %token DOT
 %token EQ
 %token COLON
 %token ARROW
 %token EOF
-%token Y
+%token QM
+%token CONCAT 
 
+
+%token <string> ID
 %token <int> INTV
-%token <string> IDV
 %token <string> STRINGV
+%token <string> STRINGT
 
 %start s
 %type <Lambda.command> s
@@ -44,85 +55,119 @@
 %%
 
 s :
-    term EOF
+    STRINGV EQ termS EOF 
+      { Bind ($1, $3)}
+  | termS EOF
       { Eval $1 }
-    | IDV EQ term EOF
-      { Bind ($1, $3) }
+
+termS:
+     term
+       { $1 }
+     | termS SEMICOLON term
+      {TmApp(TmAbs("_",TyUnit, $3), $1)}
+
 
 term :
     appTerm
       { $1 }
   | IF term THEN term ELSE term
-      { TmIf ($2, $4, $6) } 
-  | LAMBDA IDV COLON ty DOT term
-      { TmAbs ($2, $4, $6) } 
-  | LET IDV EQ term IN term
-      { TmLetIn ($2, $4, $6) } 
-  | LETREC IDV COLON ty EQ term IN term
-      { 
-        TmLetIn ($2, 
-          TmFix (TmAbs ($2, $4, $6)), 
-          $8) 
-      } 
-  | LAMBDA IDV COLON ty DOT term
+      { TmIf ($2, $4, $6) }
+  | LAMBDA STRINGV COLON ty DOT term
       { TmAbs ($2, $4, $6) }
-  | Y
-      { TmY }
+  | LET STRINGV EQ term IN term
+      { TmLetIn ($2, $4, $6) }
+  | LETREC STRINGV COLON ty EQ term IN term
+    { TmLetIn ($2, TmFix (TmAbs ($2, $4, $6)), $8) } 
+  | STRINGV
+      { TmString $1 }  
+  | term CONCAT term
+      { TmConcat ($1, $3) }  
+
+
+
+
+
 
 appTerm :
-    atomicTerm
+    pathTerm
       { $1 }
-  | SUCC atomicTerm
+  | SUCC pathTerm
       { TmSucc $2 }
-  | PRED atomicTerm
+  | PRED pathTerm
       { TmPred $2 }
-  | ISZERO atomicTerm
+  | ISZERO pathTerm
       { TmIsZero $2 }
-  | CONCAT atomicTerm atomicTerm
-      { TmConcat ($2, $3) }
-  | appTerm atomicTerm
+  | pathTerm CONCAT pathTerm
+      { TmConcat ($1, $3) }
+  | appTerm pathTerm
       { TmApp ($1, $2) }
+  | QM STRINGV QM 
+      { TmString $2 }
+  | CONS LCOR ty RCOR pathTerm pathTerm
+     { TmCons ($3,$5,$6) }
+  | ISNIL LCOR ty RCOR pathTerm
+     { TmIsNil ($3,$5) }
+  | HEAD LCOR ty RCOR pathTerm
+     { TmHead ($3,$5) }
+  | TAIL LCOR ty RCOR pathTerm
+     { TmTail ($3,$5) }
+  | NIL LCOR ty RCOR
+     { TmNil ($3) }
+  
+
 
 pathTerm :
-  | pathTerm DOT INTV
-      { TmProjection ($1, (string_of_int $3)) }
-  | pathTerm DOT IDV
-      { TmProjection ($1, $3) }
-  | atomicTerm
-      { $1 }
+   | pathTerm DOT INTV
+      { TmProj ($1, (string_of_int $3))}
+      
+   | pathTerm DOT STRINGV
+      { TmProj ($1,$3)}
+
+   | atomicTerm
+      { $1 } 
+
 
 atomicTerm :
     LPAREN term RPAREN
-      { $2 }
+      { $2 }   
+  | ID EQ term
+      { $3 }
   | TRUE
-      { TmTrue }
+      {TmTrue}
   | FALSE
       { TmFalse }
-  | IDV
+  | STRINGV
       { TmVar $1 }
+  | STRINGT 
+      {TmString $1}
   | INTV
       { let rec f = function
             0 -> TmZero
           | n -> TmSucc (f (n-1))
         in f $1 }
-  | STRINGV
-      { TmString $1 }
-  | LBRACE tuple RBRACE
-      { TmTuple $2 }
-  | LBRACE record RBRACE
-      { TmRecord $2 }
+  | UNITV 
+      { TmUnit }
+  |LBRACKET recordTM RBRACKET
+     {TmRecord $2}
+  |LBRACKET tuplesTM RBRACKET
+     { TmTuple $2 }
 
-tuple :
-  | term { [$1] }
-  | term COMMA tuple { $1::$3 }
-  
-record :
-  | { [] }
-  | nonEmptyRecord { $1 }
-  
-nonEmptyRecord :
-  | IDV EQ term { [$1, $3] }
-  | IDV EQ term COMMA nonEmptyRecord { ($1, $3)::$5 }
+     
+recordTM:
+   |          { [] } 
+   |noemptyrecordTM { $1 }
+   
+
+noemptyrecordTM:
+   |STRINGV EQ term {[$1,$3]}
+   |STRINGV EQ term COMMA noemptyrecordTM {($1,$3)::$5}
+
+
+
+tuplesTM:
+   | term { [$1] }
+   | term COMMA tuplesTM { $1::$3 }
+
 
 ty :
     atomicTy
@@ -131,15 +176,34 @@ ty :
       { TyArr ($1, $3) }
 
 atomicTy :
-    LPAREN ty RPAREN
+    LPAREN ty RPAREN  
+      { $2 } 
+  | LCOR ty RCOR 
       { $2 }
   | BOOL
       { TyBool }
   | NAT
       { TyNat }
-  | LBRACK tupleType RBRACK
+  | STRING 
+      { TyString }
+  | UNIT
+      { TyUnit }
+  | LBRACKET recordTY RBRACKET
+      { TyRecord $2 }
+  | LBRACKET tuplesTY RBRACKET
       { TyTuple $2 }
+  | LIST LCOR ty RCOR 
+      { TyList $3 }
 
-tupleType :
+
+recordTY:
+  |        { [] }
+  | noemptyrecordTY { $1 }
+  
+noemptyrecordTY:
+  | STRINGV COLON ty {[$1,$3]}
+  | STRINGV COLON ty COMMA noemptyrecordTY {($1,$3)::$5}
+
+tuplesTY:
   | ty { [$1] }
-  | ty COMMA tupleType { $1::$3 }
+  | ty COMMA tuplesTY { $1::$3 }   
