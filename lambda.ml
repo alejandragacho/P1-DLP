@@ -6,6 +6,7 @@ type ty =
   | TyNat
   | TyArr of ty * ty
   | TyString
+  | TyUnit
   | TyTuple of ty list
   | TyRecord of (string * ty) list
   | TyList of ty 
@@ -32,7 +33,8 @@ type term =
 | TmLetIn of string * term * term
 | TmFix of term
 | TmString of string
-| TmProj of term * string
+| TmUnit
+| TmProjection of term * string
 | TmRecord of (string * term) list
 | TmNil of ty
 | TmCons of ty * term * term
@@ -113,6 +115,8 @@ let rec string_of_ty ty = match ty with
       "(" ^ string_of_ty ty1 ^ ")" ^ " -> " ^ "(" ^ string_of_ty ty2 ^ ")"
   | TyString ->
       "String"
+  | TyUnit ->
+    "Unit"
   | TyTuple tyr ->
       let rec print = function
           [] -> ""
@@ -195,10 +199,7 @@ let rec typeof ctx tm = match tm with
   | TmVar x ->
       (try getbinding ctx x with
        _ -> raise (Type_error ("no binding type for variable " ^ x)))
-       
-  | TmY ->
-       TyArr (TyNat, TyNat)
-
+  
     (* T-Abs *)
   | TmAbs (x, tyT1, t2) ->
       let ctx' = addbinding ctx x tyT1 in
@@ -229,6 +230,9 @@ let rec typeof ctx tm = match tm with
 		     if tyT11 = tyT12 then tyT12
 			 else raise (Type_error "result of body not compatible with domain")
 	  | _ -> raise (Type_error "arrow type expected"))
+
+  | TmUnit ->
+    TyUnit
 	  
 	(* New rules for string *)
   | TmString _ ->
@@ -246,7 +250,7 @@ let rec typeof ctx tm = match tm with
       in TyTuple (get_types tmt)
       
     (* T-Projection *)
-   | TmProjection (t, n) ->
+    | TmProjection (t, n) ->
       (match (typeof ctx t, n) with
           | TyRecord tyr, s -> 
               (try List.assoc s tyr with
@@ -310,6 +314,8 @@ let rec string_of_term ?(prec=0) = function
   | TmPred t ->
       let inner = string_of_term ~prec:3 t in
       "pred " ^ inner
+  | TmUnit ->
+    "()"
   | TmIsZero t ->
       let inner = string_of_term ~prec:3 t in
       "iszero " ^ inner
@@ -332,7 +338,6 @@ let rec string_of_term ?(prec=0) = function
       let left = string_of_term ~prec:2 t1 in
       let right = string_of_term ~prec:2 t2 in
       "concat(" ^ left ^ ", " ^ right ^ ")"
-  | TmY -> "Y"
   | TmTuple tmt ->
       let rec print = function
           [] -> ""
@@ -374,9 +379,8 @@ let rec free_vars tm = match tm with
       lunion (lunion (free_vars t1) (free_vars t2)) (free_vars t3)
   | TmZero ->
       []
-
-  | TmY -> []
-
+  | TmUnit ->
+      []
   | TmSucc t ->
       free_vars t
   | TmPred t ->
@@ -447,7 +451,7 @@ let rec subst x s tm = match tm with
   | TmVar y ->
       if y = x then s else tm
 
-  | TmY -> TmY
+ 
 
   | TmAbs (y, tyY, t) ->
       if y = x then tm
@@ -469,6 +473,8 @@ let rec subst x s tm = match tm with
       TmFix (subst x s t)
   | TmString st ->
       TmString st
+  | TmUnit ->
+      tm
   | TmConcat (t1, t2) ->
       TmConcat (subst x s t1, subst x s t2)
   | TmTuple tmt ->
@@ -508,6 +514,7 @@ let rec isval tm = match tm with
     TmTrue  -> true
   | TmFalse -> true
   | TmAbs _ -> true
+  | TmUnit -> true
   | t when isnumericval t -> true
   | TmTuple l -> List.for_all(fun t -> isval(t)) l
   | TmRecord [] -> true
@@ -635,19 +642,19 @@ let rec eval1 vctx tm = match tm with
   (*E-Tail*)
 |TmTail(ty,t) -> TmTail(ty,eval1 vctx t)
     
-|TmProj (TmRecord l as v , s) when isval(v) -> 
+|TmProjection (TmRecord l as v , s) when isval(v) -> 
   List.assoc s l 
 
   (*E-ProjRecord*)
-|TmProj (TmRecord (tmr), n) ->
+|TmProjection (TmRecord (tmr), n) ->
    List.assoc n tmr 
    
   (*E-Proj*)
-| TmProj (TmTuple l as v , s) when isval(v) -> 
+| TmProjection (TmTuple l as v , s) when isval(v) -> 
   List.nth l (int_of_string s - 1)
 
-| TmProj (t,n) ->
-  TmProj ((eval1 vctx t), n)
+| TmProjection (t,n) ->
+  TmProjection ((eval1 vctx t), n)
          
 | TmTuple tml ->
   let rec eval_rcd = function

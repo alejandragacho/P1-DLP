@@ -118,10 +118,10 @@ appTerm :
 
 pathTerm :
    | pathTerm DOT INTV
-      { TmProj ($1, (string_of_int $3))}
+      { TmProjection ($1, (string_of_int $3))}
       
    | pathTerm DOT STRINGV
-      { TmProj ($1,$3)}
+      { TmProjection ($1,$3)}
 
    | atomicTerm
       { $1 } 

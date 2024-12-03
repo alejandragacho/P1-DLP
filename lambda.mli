@@ -4,8 +4,10 @@ type ty =
   | TyNat
   | TyArr of ty * ty
   | TyString
+  | TyUnit
   | TyTuple of ty list
   | TyRecord of (string * ty) list
+  | TyList of ty 
 ;;
 
 type 'a context =
@@ -13,31 +15,30 @@ type 'a context =
 ;;
 
 type term =
-    TmTrue
-  | TmFalse
-  | TmIf of term * term * term
-  | TmZero
-  | TmSucc of term
-  | TmPred of term
-  | TmIsZero of term
-  | TmVar of string
-  | TmAbs of string * ty * term
-  | TmApp of term * term
-  | TmLetIn of string * term * term
-  | TmFix of term
-  | TmString of string
-  | TmConcat of term * term
-  | TmY
-  | TmTuple of term list
-  | TmProjection of term * string
-  | TmRecord of (string * term) list
-  | TmNil of ty
-  | TmCons of ty * term * term
-  | TmIsNil of ty * term
-  | TmHead of ty * term
-  | TmTail of ty * term
+  TmTrue
+| TmFalse
+| TmIf of term * term * term
+| TmZero
+| TmSucc of term
+| TmPred of term
+| TmIsZero of term
+| TmVar of string
+| TmAbs of string * ty * term
+| TmApp of term * term
+| TmLetIn of string * term * term
+| TmFix of term
+| TmString of string
+| TmUnit
+| TmProjection of term * string
+| TmRecord of (string * term) list
+| TmNil of ty
+| TmCons of ty * term * term
+| TmIsNil of ty * term
+| TmHead of ty * term
+| TmTail of ty * term
+| TmTuple of term list
+| TmConcat of term * term 
 ;;
-
 type command =
   Eval of term
   | Bind of string * term
