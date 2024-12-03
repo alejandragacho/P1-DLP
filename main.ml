@@ -8,49 +8,6 @@ open Lexer;;
 open String;;
 open Str;;
 
-(*IMPLEMENTACION CON BUFFER*)
-
-let build_multiline input =
-  (* Crear la libreta (Buffer) para guardar las líneas *)
-  let buffer = Buffer.create 100 in
-
-  (* Escribir la primera línea en la libreta *)
-  Buffer.add_string buffer (String.trim input);
-
-  (* Aquí comienza el bucle para pedir más líneas si es necesario *)
-  let rec loop () =
-    (* Verifica si la última línea escrita termina con ";;" *)
-    if String.ends_with ~suffix:";;" (Buffer.contents buffer) then
-      let result = Buffer.contents buffer in
-      String.sub result 0 (String.length result - 2)  (* Si termina, junta todo y devuelve la historia *)
-    else begin
-      print_string "  ";  (* Pide otra línea mostrando un espacio como prompt *)
-      flush stdout;
-
-      (* Lee una nueva línea y guárdala en la libreta *)
-      let next_line = read_line () in
-      Buffer.add_char buffer ' ';  (* Añade un espacio entre líneas *)
-      Buffer.add_string buffer (String.trim next_line);
-
-      loop ()  (* Repite el proceso *)
-    end
-  in
-  loop ()  (* Inicia el bucle *)
-;;
-
-
-open Parsing;;
-open Lexing;;
-
-open Lambda;;
-open Parser;;
-open Lexer;;
-
-open String;;
-open Str;;
-
-(*IMPLEMENTACION CON BUFFER*)
-
 let build_multiline input =
   (* Crear la libreta (Buffer) para guardar las líneas *)
   let buffer = Buffer.create 100 in
