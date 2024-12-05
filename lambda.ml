@@ -131,7 +131,6 @@ let rec string_of_ty ty = match ty with
           | (s, ty)::t -> s ^ ":" ^ string_of_ty ty ^ "," ^ print t
       in "{" ^ print tyr ^ "}"
   | TyList ty -> "List[" ^ string_of_ty ty ^ "]"
-
 ;;
 
 
@@ -235,7 +234,7 @@ let rec typeof ctx tm = match tm with
   | TmUnit ->
     TyUnit
 	  
-	(* New rules for string *)
+    (* New rules for string *)
   | TmString _ ->
       TyString
 	  
@@ -485,13 +484,10 @@ let rec subst x s tm = match tm with
       in TmRecord (sub_r tmr)
   | TmNil ty ->
     tm
-    
   | TmCons (ty,t1,t2) ->
       TmCons (ty, (subst x s t1), (subst x s t2))
-  
   | TmIsNil (ty,t) ->
      TmIsNil (ty, (subst x s t))
-     
   | TmHead (ty,t) ->
      TmHead (ty, (subst x s t))
   | TmTail (ty,t) ->
@@ -607,40 +603,40 @@ let rec eval1 vctx tm = match tm with
     with Type_error _ -> raise (Type_error ("Unbound variable: " ^ id)))
 
   (*E-Cons2*)
-| TmCons(ty,h,t) when isval h -> TmCons(ty,h,(eval1 vctx t))
+| TmCons(ty, h, t) when isval h -> TmCons(ty, h, (eval1 vctx t))
 
   (*E-Cons1*)
-| TmCons(ty,h,t) -> TmCons(ty,(eval1 vctx h),t)
+| TmCons(ty, h, t) -> TmCons(ty,(eval1 vctx h),t)
 
   (*E-IsNilNil*)
-| TmIsNil(ty,TmNil(_)) -> TmTrue
+| TmIsNil(ty, TmNil(_)) -> TmTrue
 
   (*E-IsNilCons*)
-| TmIsNil(ty,TmCons(_,_,_)) -> TmFalse
+| TmIsNil(ty, TmCons(_, _, _)) -> TmFalse
 
   (*E-IsNil*)
-| TmIsNil(ty,t) -> TmIsNil(ty,eval1 vctx t)
+| TmIsNil(ty, t) -> TmIsNil(ty, eval1 vctx t)
 
   (*E-HeadCons*)
 | TmHead (_, t) when isval t ->
   get_head t
 
   (*E-Head*)
-  | TmHead (ty, t) ->
+| TmHead (ty, t) ->
   TmHead (ty, eval1 vctx t)
 
   (*E-TailCons*)
-  | TmTail (_, t) when isval t ->
+| TmTail (_, t) when isval t ->
   get_tail t
 
   (*E-Tail*)
-|TmTail(ty,t) -> TmTail(ty,eval1 vctx t)
+| TmTail(ty,t) -> TmTail(ty,eval1 vctx t)
     
-|TmProjection (TmRecord l as v , s) when isval(v) -> 
+| TmProjection (TmRecord l as v , s) when isval(v) -> 
   List.assoc s l 
 
   (*E-ProjRecord*)
-|TmProjection (TmRecord (tmr), n) ->
+| TmProjection (TmRecord (tmr), n) ->
    List.assoc n tmr 
    
   (*E-Proj*)
@@ -649,7 +645,7 @@ let rec eval1 vctx tm = match tm with
 
 | TmProjection (t,n) ->
   TmProjection ((eval1 vctx t), n)
-         
+
 | TmTuple tml ->
   let rec eval_rcd = function
     [] -> raise NoRuleApplies
@@ -659,15 +655,15 @@ let rec eval1 vctx tm = match tm with
    
  (*E-Record*)
 | TmRecord tmr ->
-   let rec evalrecord = function
-     [] -> raise NoRuleApplies
-     | (str,tm)::t when isval tm -> (str,tm)::(evalrecord t)
-     | (str,tm)::t -> (str, (eval1 vctx tm))::t
+    let rec evalrecord = function
+      [] -> raise NoRuleApplies
+      | (str,tm)::t when isval tm -> (str,tm)::(evalrecord t)
+      | (str,tm)::t -> (str, (eval1 vctx tm))::t
     in TmRecord (evalrecord tmr)
 
 | _ ->
     raise NoRuleApplies
-    
+
 ;;
 
 let apply_ctx ctx tm =
