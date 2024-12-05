@@ -44,6 +44,7 @@ type term =
 | TmTuple of term list
 | TmConcat of term * term 
 ;;
+
 type command =
   Eval of term
   | Bind of string * term
@@ -89,7 +90,7 @@ let get_global_def id =
     with Not_found -> failwith ("Undefined global: " ^ id)
   ;;
 
-(*LISTS IMPLEMENTATION*)
+(* LISTS IMPLEMENTATION *)
 let is_nil t = match t with
   | TmNil _ -> true
   | _ -> false
@@ -134,7 +135,7 @@ let rec string_of_ty ty = match ty with
 ;;
 
 
-(* Subtipado principal *)
+(* Subtyping *)
 let rec subtypeof tm1 tm2 = 
   match (tm1, tm2) with
   | (TyArr (s1, s2), TyArr (t1, t2)) ->
@@ -144,11 +145,11 @@ let rec subtypeof tm1 tm2 =
   | (tm1, tm2) ->
       tm1 = tm2
 
-(* Subtipado para funciones *)
+(* Subtyping for functions *)
 and subtypeof_functions s1 s2 t1 t2 =
   subtypeof t1 s1 && subtypeof s2 t2
 
-(* Subtipado para registros *)
+(* Subtyping for records *)
 and subtypeof_records l1 l2 =
   let rec check_field (field, ty) l =
     match List.assoc_opt field l with
@@ -413,20 +414,16 @@ let rec free_vars tm = match tm with
           [] -> []
           | (_, tm)::t -> lunion (free_vars tm) (get_free t)
       in get_free tmr
-   | TmNil ty ->
-    []
-    
+  | TmNil ty ->
+      []
   | TmCons (ty,t1,t2) ->
       lunion (free_vars t1) (free_vars t2)
-      
   | TmIsNil (ty,t) ->
-    free_vars t
-   
+      free_vars t
   | TmHead (ty,t) ->
-    free_vars t
-    
+      free_vars t
   | TmTail (ty,t) ->
-    free_vars t
+      free_vars t
 ;;
 
 let rec fresh_name x l =
@@ -450,9 +447,6 @@ let rec subst x s tm = match tm with
       TmIsZero (subst x s t)
   | TmVar y ->
       if y = x then s else tm
-
- 
-
   | TmAbs (y, tyY, t) ->
       if y = x then tm
       else let fvs = free_vars s in
@@ -604,7 +598,7 @@ let rec eval1 vctx tm = match tm with
     subst x tm t2 
   
   (* E-Fix *)
-| TmFix t1 ->   (* cuando t1 aún no es una abstracción, evalúo t1 para obtener t1' *)
+| TmFix t1 ->   (* when t1 isn't yet an abstraction, we evaluate t1 to get t1' *)
     let t1' = eval1 vctx t1 in
     TmFix t1'
 
@@ -613,19 +607,19 @@ let rec eval1 vctx tm = match tm with
     with Type_error _ -> raise (Type_error ("Unbound variable: " ^ id)))
 
   (*E-Cons2*)
-|TmCons(ty,h,t) when isval h -> TmCons(ty,h,(eval1 vctx t))
+| TmCons(ty,h,t) when isval h -> TmCons(ty,h,(eval1 vctx t))
 
   (*E-Cons1*)
-|TmCons(ty,h,t) -> TmCons(ty,(eval1 vctx h),t)
+| TmCons(ty,h,t) -> TmCons(ty,(eval1 vctx h),t)
 
   (*E-IsNilNil*)
-|TmIsNil(ty,TmNil(_)) -> TmTrue
+| TmIsNil(ty,TmNil(_)) -> TmTrue
 
   (*E-IsNilCons*)
-|TmIsNil(ty,TmCons(_,_,_)) -> TmFalse
+| TmIsNil(ty,TmCons(_,_,_)) -> TmFalse
 
   (*E-IsNil*)
-|TmIsNil(ty,t) -> TmIsNil(ty,eval1 vctx t)
+| TmIsNil(ty,t) -> TmIsNil(ty,eval1 vctx t)
 
   (*E-HeadCons*)
 | TmHead (_, t) when isval t ->
@@ -659,16 +653,16 @@ let rec eval1 vctx tm = match tm with
 | TmTuple tml ->
   let rec eval_rcd = function
     [] -> raise NoRuleApplies
-    |(tm::t) when isval tm -> tm::(eval_rcd t)
-    |(tm::t) -> (eval1 vctx tm)::t
+    | tm::t when isval tm -> tm::(eval_rcd t)
+    | tm::t -> (eval1 vctx tm)::t
   in TmTuple (eval_rcd tml)
    
  (*E-Record*)
 | TmRecord tmr ->
    let rec evalrecord = function
      [] -> raise NoRuleApplies
-     |((str,tm)::t) when isval tm -> (str,tm)::(evalrecord t)
-     |((str,tm)::t) -> (str,(eval1 vctx tm))::t
+     | (str,tm)::t when isval tm -> (str,tm)::(evalrecord t)
+     | (str,tm)::t -> (str, (eval1 vctx tm))::t
     in TmRecord (evalrecord tmr)
 
 | _ ->
@@ -695,10 +689,10 @@ let execute (ctx, tctx) = function
       print_endline ("- : " ^ string_of_ty tyTm ^ " = " ^ string_of_term tm');
       (ctx, tctx)
   | Bind (s, tm) ->
-      let tyTm = typeof tctx tm in  (* Determinar el tipo del término *)
-      let tm' = eval ctx tm in  (* Evaluar el término *)
-      add_global_def s tm';  (* Agregar al contexto global *)
-      let tctx' = addbinding tctx s tyTm in  (* Actualizar el contexto de tipos *)
+      let tyTm = typeof tctx tm in  (* Determine the type of term *)
+      let tm' = eval ctx tm in  (* Evaluate the term *)
+      add_global_def s tm';  (* Add to global context *)
+      let tctx' = addbinding tctx s tyTm in  (* Update the type context *)
       print_endline (s ^ " : " ^ string_of_ty tyTm ^ " = " ^ string_of_term tm');
-      (ctx, tctx')  (* Retornar el nuevo contexto de tipos *)
+      (ctx, tctx')  (* Return the new type context *)
       ;;
