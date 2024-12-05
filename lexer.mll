@@ -30,15 +30,15 @@ rule token = parse
   | ']'         { RCOR }
   | '('         { LPAREN }
   | ')'         { RPAREN }
-  | '{'         {LBRACKET}
-  | '}'         {RBRACKET}
-  | "List"      {LIST}
-  | "nil"       {NIL}
-  | "cons"      {CONS}
-  | "isnil"     {ISNIL}
-  | "head"      {HEAD}
-  | "tail"      {TAIL}
-  | ','         {COMMA}
+  | '{'         { LBRACKET }
+  | '}'         { RBRACKET }
+  | "List"      { LIST }
+  | "nil"       { NIL }
+  | "cons"      { CONS }
+  | "isnil"     { ISNIL }
+  | "head"      { HEAD }
+  | "tail"      { TAIL }
+  | ','         { COMMA }
   | ';'         { SEMICOLON }
   | '.'         { DOT }
   | '='         { EQ }

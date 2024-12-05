@@ -9,31 +9,31 @@ open String;;
 open Str;;
 
 let build_multiline input =
-  (* Crear la libreta (Buffer) para guardar las líneas *)
+  (* Create the Buffer to store the lines *)
   let buffer = Buffer.create 100 in
 
-  (* Escribir la primera línea en la libreta *)
+  (* Write the first line in the buffer *)
   Buffer.add_string buffer (String.trim input);
 
-  (* Aquí comienza el bucle para pedir más líneas si es necesario *)
+  (* Here starts the loop to ask for more lines if necessary *)
   let rec loop () =
-    (* Verifica si la última línea escrita termina con ";;" *)
+    (* Check if the last line typed ends with ";;" *)
     if String.ends_with ~suffix:";;" (Buffer.contents buffer) then
       let result = Buffer.contents buffer in
-      String.sub result 0 (String.length result - 2)  (* Si termina, junta todo y devuelve la historia *)
+      String.sub result 0 (String.length result - 2)  (* If it ends, puts it together and returns *)
     else begin
-      print_string "  ";  (* Pide otra línea mostrando un espacio como prompt *)
+      print_string "  ";  (* Asks for another line showing a space as prompt *)
       flush stdout;
 
-      (* Lee una nueva línea y guárdala en la libreta *)
+      (* Reads a new line and saves it *)
       let next_line = read_line () in
-      Buffer.add_char buffer ' ';  (* Añade un espacio entre líneas *)
+      Buffer.add_char buffer ' ';  (* Adds a space between lines *)
       Buffer.add_string buffer (String.trim next_line);
 
-      loop ()  (* Repite el proceso *)
+      loop () (* Repeats the process *)
     end
   in
-  loop ()  (* Inicia el bucle *)
+  loop ()  (* Starts the loop *)
 ;;
 
 

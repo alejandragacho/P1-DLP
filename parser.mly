@@ -17,7 +17,6 @@
 %token IN
 %token BOOL
 %token NAT
-
 %token STRING
 %token UNIT
 %token UNITV
@@ -26,7 +25,7 @@
 %token LPAREN
 %token RPAREN
 %token LBRACKET
-%token RBRACKET 
+%token RBRACKET
 %token LIST
 %token NIL
 %token CONS
