@@ -24,7 +24,6 @@ rule token = parse
   | "Nat"       { NAT }
   | "String"    { STRING }
   | "()"        { UNITV }
-  | "unit"      { UNITV }
   | '['         { LBRACKET }
   | ']'         { RBRACKET }
   | '('         { LPAREN }

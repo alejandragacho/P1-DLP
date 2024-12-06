@@ -11,17 +11,17 @@ type token =
   | LET
   | LETREC
   | IN
+  | CONCAT
   | BOOL
   | NAT
   | STRING
-  | UNIT
   | UNITV
-  | LCOR
-  | RCOR
-  | LPAREN
-  | RPAREN
   | LBRACKET
   | RBRACKET
+  | LPAREN
+  | RPAREN
+  | LBRACE
+  | RBRACE
   | LIST
   | NIL
   | CONS
@@ -36,11 +36,9 @@ type token =
   | ARROW
   | EOF
   | QM
-  | CONCAT
-  | ID of (string)
   | INTV of (int)
+  | IDV of (string)
   | STRINGV of (string)
-  | STRINGT of (string)
 
 val s :
   (Lexing.lexbuf  -> token) -> Lexing.lexbuf -> Lambda.command

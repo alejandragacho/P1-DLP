@@ -4,9 +4,9 @@
 type ty =
   TyBool
 | TyNat
-| TyUnit
 | TyArr of ty * ty
 | TyList of ty
+| TyRecord of (string * ty) list
 | TyTuple of ty list
 | TyString
 
@@ -14,6 +14,10 @@ type ty =
 
 type 'a context =
 (string * 'a) list  (* Contexto polimórfico 'a es alfa *)
+;;
+
+
+exception Type_error of string
 ;;
 
 type term =
@@ -30,12 +34,14 @@ type term =
 | TmLetIn of string * term * term
 | TmFix of term
 | TmLetRec of string * ty * term * term
-| TmUnit
+| TmProjection of term * string
+| TmRecord of (string * term) list
 | TmNil of ty
 | TmCons of ty * term * term
 | TmIsNil of ty * term
 | TmHead of ty * term
 | TmTail of ty * term
+| TmTuple of term list
 | TmString of string
 | TmConcat of term * term 
 ;;
@@ -44,6 +50,7 @@ type command =
 Eval of term
 | Bind of string * term
 ;;
+
 
 (* CONTEXT MANAGEMENT *)
 
@@ -108,8 +115,6 @@ let rec string_of_ty ty = match ty with
     "Nat"
 | TyString -> 
     "String"
-| TyUnit ->
-    "Unit"
 | TyArr (ty1, ty2) ->
     "(" ^ string_of_ty ty1 ^ ")" ^ " -> " ^ "(" ^ string_of_ty ty2 ^ ")"      
 
@@ -121,6 +126,7 @@ let rec string_of_ty ty = match ty with
   in "{" ^ (print tyr) ^ "}"
     
 | TyList ty -> "List[" ^ string_of_ty ty ^ "]"
+| _ -> "Unknown type"  (* Caso por defecto *)
 ;;
 
 (* Definición de prioridades para operadores y términos *)
@@ -184,7 +190,6 @@ let rec pretty_print ?(parent_priority=0) term =
       in if parent_priority > priority_of_term term then "(" ^ let_str ^ ")" else let_str
   | TmHead (ty, t) -> "head[" ^ string_of_ty ty ^ "](" ^ pretty_print t ^ ")"
   | TmTail (ty, t) -> "tail[" ^ string_of_ty ty ^ "](" ^ pretty_print t ^ ")"
-  | TmUnit -> "()"
   | TmNil ty ->
       "nil[" ^ string_of_ty ty ^ "]"
   | TmCons (ty, head, tail) ->
@@ -192,10 +197,6 @@ let rec pretty_print ?(parent_priority=0) term =
   | _ -> raise (Failure "Unhandled case in pretty_print")
 ;;
 
-
-
-exception Type_error of string
-;;
 
 (*let rec subtypeof tm1 tm2 = match (tm1, tm2) with
   | (TyArr(s1, s2), TyArr(t1, t2)) -> ((subtypeof s1 t1) && (subtypeof t2 s2))
@@ -308,10 +309,10 @@ let rec typeof ctx tm = match tm with
 
 
   (* T-Fix *)
-| TmFix t ->
+(*| TmFix t ->
   (match typeof ctx t with
   | TyArr (tyT1, tyT2) when subtypeof tyT1 tyT2 -> tyT2
-  | _ -> raise (Type_error "TmFix must be applied to a function with matching input and output types"))
+  | _ -> raise (Type_error "TmFix must be applied to a function with matching input and output types"))*)
 
 | TmString _ -> 
   TyString
@@ -332,12 +333,6 @@ else
   else
     raise (Type_error "Type mismatch in letrec")
 
-
-
-  (* T-Unit *)
-| TmUnit ->
-    TyUnit
-   
       
 | TmNil ty -> TyList ty
       
@@ -349,30 +344,11 @@ else
          if (subtypeof tyTh ty) && (subtypeof tyTt (TyList(ty))) then 
             TyList(ty) else raise (Type_error "elements of list have 
           different types")
-          
-    (* T-IsNil *)
-| TmIsNil (ty,t) ->
-    if typeof ctx t = TyList(ty) then TyBool
-    else raise (Type_error ("argument of is empty is not a " ^ "List[" ^ (string_of_ty ty) ^ "]"))
 
-   (* T-Head *)
-| TmHead (ty,t) ->
-    if typeof ctx t = TyList(ty) then ty
-    else raise (Type_error ("argument of head is not a " ^ "List[" ^ (string_of_ty ty) ^ "]"))
-    
-   (* T-Tail *)
-| TmTail (ty,t) ->
-    if typeof ctx t = TyList(ty) then TyList(ty)
-    else raise (Type_error ("argument of tail is not a " ^ "List[" ^ (string_of_ty ty) ^ "]"))
      
-    (* T-Let *)
-  | TmLetIn (x, t1, t2) ->
-      let tyT1 = typeof ctx t1 in
-      let ctx' = addbinding ctx x tyT1 in
-      typeof ctx' t2
 	  
     (* T-Fix *)
-  | TmFix t1 ->
+| TmFix t1 ->
       let tyT1 = typeof ctx t1 in
 	  (match tyT1 with
 	       TyArr (tyT11, tyT12) ->
@@ -380,25 +356,16 @@ else
 			 else raise (Type_error "result of body not compatible with domain")
 	  | _ -> raise (Type_error "arrow type expected"))
 
-	  
-    (* New rules for string *)
-  | TmString _ ->
-      TyString
-      
-    (* T-Concat *)
-  | TmConcat (t1, t2) ->
-      if typeof ctx t1 = TyString && typeof ctx t2 = TyString then TyString
-	  else raise (Type_error "argument of concat is not a string")
 
     (* T-Tuple *)
-  | TmTuple tmt ->
+| TmTuple tmt ->
       let rec get_types = function
           [] -> []
           | tm::t -> typeof ctx tm :: get_types t
       in TyTuple (get_types tmt)
       
     (* T-Projection *)
-  | TmProjection (t, n) ->
+| TmProjection (t, n) ->
       (match (typeof ctx t, n) with
           | TyRecord tyr, s -> 
               (try List.assoc s tyr with
@@ -409,32 +376,25 @@ else
           | _ -> raise (Type_error ("Projection error. Type can't be projected")))
  
     (* T-Record *)
-  | TmRecord tmr ->
+| TmRecord tmr ->
        let rec get_types = function
            [] -> []
            | (s, tm)::t -> (s, typeof ctx tm) :: get_types t
        in TyRecord (get_types tmr)
-
-  | TmNil ty -> TyList ty
     (* T-Cons *)
-  | TmCons (ty,h,t) ->
-      let tyTh = typeof ctx h in
-          let tyTt = typeof ctx t in
-             if (subtypeof tyTh ty) && (subtypeof tyTt (TyList(ty))) then 
-              TyList(ty) else raise (Type_error "elements of list have different types")
           
     (* T-IsNil *)
-  | TmIsNil (ty,t) ->
+| TmIsNil (ty,t) ->
       if typeof ctx t = TyList(ty) then TyBool
       else raise (Type_error ("argument of is empty is not a " ^ "List[" ^ (string_of_ty ty) ^ "]"))
 
    (* T-Head *)
-  | TmHead (ty,t) ->
+| TmHead (ty,t) ->
       if typeof ctx t = TyList(ty) then ty
       else raise (Type_error ("argument of head is not a " ^ "List[" ^ (string_of_ty ty) ^ "]"))
     
    (* T-Tail *)
-  | TmTail (ty,t) ->
+| TmTail (ty,t) ->
       if typeof ctx t = TyList(ty) then TyList(ty)
       else raise (Type_error ("argument of tail is not a " ^ "List[" ^ (string_of_ty ty) ^ "]"))
 ;;
@@ -487,14 +447,14 @@ let rec string_of_term = function
     "letrec " ^ f ^ " : " ^ string_of_ty ty ^ " = " ^ 
     string_of_term bodyF ^ " in " ^ string_of_term body
 
-| TmUnit ->
-    "()"
 
 | TmNil ty -> "nil[" ^string_of_ty ty ^ "]"
 | TmCons (ty,h,t) -> "cons[" ^string_of_ty ty ^ "] " ^ "(" ^ string_of_term h ^ " " ^ (string_of_term t) ^ ")"
 | TmIsNil (ty,t) -> "isnil[" ^string_of_ty ty ^ "] " ^ "(" ^ string_of_term t ^ ")" 
 | TmHead (ty,t) -> "head[" ^string_of_ty ty ^ "] " ^ "(" ^ string_of_term t ^ ")" 
 | TmTail (ty,t) -> "tail[" ^string_of_ty ty ^ "] " ^ "(" ^ string_of_term t ^ ")"
+
+| _ -> "Unknown term"  (* Maneja cualquier caso no cubierto *)
 
 ;;
 
@@ -581,8 +541,6 @@ let rec subst x s tm = match tm with (* sustituir las apariciones de x en tm por
 | TmFalse ->
     TmFalse
 | TmString _ -> 
-    tm
-| TmUnit ->
     tm
 | TmConcat (t1, t2) ->
     TmConcat (subst x s t1, subst x s t2)
@@ -794,32 +752,15 @@ let rec eval1 vctx tm = match tm with
   (* E-IsNil *)
 | TmIsNil(ty, t) -> TmIsNil(ty, eval1 vctx t)
 
-  (*E-HeadCons*)
-|TmHead(ty,TmCons(_,h,_))-> h
-
-  (*E-Head*)
-|TmHead(ty,t) -> TmHead(ty,eval1 vctx t)
-
-  (*E-TailCons*)
-|TmTail(ty,TmCons(_,_,t)) -> t
-
-  (*E-Tail*)
-|TmTail(ty,t) -> TmTail(ty,eval1 vctx t)
          
   (* E-HeadCons *)
 | TmHead (_, t) when isval t ->
   get_head t
 
-  (* E-Head *)
-| TmHead (ty, t) ->
-  TmHead (ty, eval1 vctx t)
-
   (* E-TailCons *)
 | TmTail (_, t) when isval t ->
   get_tail t
 
-  (* E-Tail *)
-| TmTail(ty, t) -> TmTail(ty, eval1 vctx t)
 
 | TmProjection (TmRecord l as v , s) when isval(v) -> 
     List.assoc s l 
@@ -880,9 +821,9 @@ let execute (vctx, tctx) = function
       (vctx, tctx)
   | Bind (s, tm) ->
       let tyTm = typeof tctx tm in  (* Determine the type of term *)
-      let tm' = eval ctx tm in  (* Evaluate the term *)
+      let tm' = eval vctx tm in  (* Evaluate the term *)
       add_global_def s tm';  (* Add to global context *)
       let tctx' = addbinding tctx s tyTm in  (* Update the type context *)
       print_endline (s ^ " : " ^ string_of_ty tyTm ^ " = " ^ string_of_term tm');
-      (ctx, tctx')  (* Return the new type context *)
+      (vctx, tctx')  (* Return the new type context *)
       ;;

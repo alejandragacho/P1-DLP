@@ -1,21 +1,20 @@
 
 
-
 type ty =
   TyBool
-  | TyNat
-  | TyUnit
-  | TyArr of ty * ty
-  | TyList of ty
-  | TyTuple of ty list
-  | TyString
-  ;;
-  
+| TyNat
+| TyArr of ty * ty
+| TyList of ty
+| TyRecord of (string * ty) list
+| TyTuple of ty list
+| TyString
+
+;;
   type 'a context =
   (string * 'a) list;; (* Contexto polimórfico 'a es alfa *)
   
   type term =
-  TmTrue
+    TmTrue
   | TmFalse
   | TmIf of term * term * term
   | TmZero
@@ -23,17 +22,19 @@ type ty =
   | TmPred of term
   | TmIsZero of term
   | TmVar of string
-  | TmAbs of string * ty * term (** constructor de abstracción *)
+  | TmAbs of string * ty * term
   | TmApp of term * term
-  | TmLetIn of string * term * term (** constructor de let in *)
-  | TmFix of term (** constructor de fix *)
+  | TmLetIn of string * term * term
+  | TmFix of term
   | TmLetRec of string * ty * term * term
-  | TmUnit
+  | TmProjection of term * string
+  | TmRecord of (string * term) list
   | TmNil of ty
   | TmCons of ty * term * term
   | TmIsNil of ty * term
   | TmHead of ty * term
   | TmTail of ty * term
+  | TmTuple of term list
   | TmString of string
   | TmConcat of term * term 
   ;;

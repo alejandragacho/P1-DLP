@@ -19,7 +19,6 @@
 %token BOOL
 %token NAT
 %token STRING
-%token UNIT
 %token UNITV
 %token LBRACKET
 %token RBRACKET
