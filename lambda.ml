@@ -342,6 +342,8 @@ let rec string_of_term ?(prec=0) = function
           | tm::[] -> string_of_term tm
           | tm::t -> string_of_term tm ^ ", " ^ print t
       in "{" ^ print tmt ^ "}"
+  | TmProjection (TmTuple l, n) ->
+      string_of_term (List.nth l (int_of_string n - 1))
   | TmProjection (t, n) ->
       string_of_term t ^ "." ^ n
   | TmRecord tmr ->
