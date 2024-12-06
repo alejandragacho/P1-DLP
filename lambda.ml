@@ -647,11 +647,15 @@ let rec eval1 vctx tm = match tm with
     List.assoc n tmr 
    
  (* E-Proj *)
-| TmProjection (TmTuple l as v, s) when isval(v) -> 
-    List.nth l (int_of_string s - 1)
+| TmProjection (TmTuple l, s) ->
+    let evaluated_tuple = List.map (eval1 vctx) l in
+    List.nth evaluated_tuple (int_of_string s - 1)
 
-| TmProjection (t,n) ->
-    TmProjection ((eval1 vctx t), n)
+| TmProjection (t, s) ->
+    let evaluated_t = eval1 vctx t in
+    (match evaluated_t with
+    | TmTuple l -> List.nth l (int_of_string s - 1)
+    | _ -> TmProjection (evaluated_t, s))
 
 | TmTuple tml ->
   let rec eval_rcd = function
