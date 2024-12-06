@@ -637,19 +637,19 @@ let rec eval1 vctx tm = match tm with
 | TmTail(ty,t) -> TmTail(ty,eval1 vctx t)
 
 
-  | TmProjection (TmRecord l as v , s) when isval(v) -> 
-      List.assoc s l 
+| TmProjection (TmRecord l as v , s) when isval(v) -> 
+    List.assoc s l 
 
-  (*E-ProjRecord*)
-  | TmProjection (TmRecord (tmr), n) ->
-      List.assoc n tmr 
+ (* E-ProjRecord *)
+| TmProjection (TmRecord tmr, n) ->
+    List.assoc n tmr 
    
-  (*E-Proj*)
-  | TmProjection (TmTuple l as v , s) when isval(v) -> 
-      List.nth l (int_of_string s - 1)
+ (* E-Proj *)
+| TmProjection (TmTuple l as v, s) when isval(v) -> 
+    List.nth l (int_of_string s - 1)
 
-  | TmProjection (t,n) ->
-      TmProjection ((eval1 vctx t), n)
+| TmProjection (t,n) ->
+    TmProjection ((eval1 vctx t), n)
 
 | TmTuple tml ->
   let rec eval_rcd = function
