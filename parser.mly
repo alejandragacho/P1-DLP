@@ -77,14 +77,7 @@ term :
   | LET STRINGV EQ term IN term
       { TmLetIn ($2, $4, $6) }
   | LETREC STRINGV COLON ty EQ term IN term
-    { TmLetIn ($2, TmFix (TmAbs ($2, $4, $6)), $8) } 
-  | STRINGV
-      { TmString $1 }  
-  | term CONCAT term
-      { TmConcat ($1, $3) }  
-
-
-
+      { TmLetRec ($2, $4, $6, $8) } 
 
 
 
@@ -117,11 +110,9 @@ appTerm :
 
 
 pathTerm :
-   | pathTerm DOT INTV
-      { TmProjection ($1, (string_of_int $3))}
+   
       
-   | pathTerm DOT STRINGV
-      { TmProjection ($1,$3)}
+
 
    | atomicTerm
       { $1 } 
@@ -147,26 +138,6 @@ atomicTerm :
         in f $1 }
   | UNITV 
       { TmUnit }
-  |LBRACKET recordTM RBRACKET
-     {TmRecord $2}
-  |LBRACKET tuplesTM RBRACKET
-     { TmTuple $2 }
-
-     
-recordTM:
-   |          { [] } 
-   |noemptyrecordTM { $1 }
-   
-
-noemptyrecordTM:
-   |STRINGV EQ term {[$1,$3]}
-   |STRINGV EQ term COMMA noemptyrecordTM {($1,$3)::$5}
-
-
-
-tuplesTM:
-   | term { [$1] }
-   | term COMMA tuplesTM { $1::$3 }
 
 
 ty :
@@ -188,22 +159,8 @@ atomicTy :
       { TyString }
   | UNIT
       { TyUnit }
-  | LBRACKET recordTY RBRACKET
-      { TyRecord $2 }
-  | LBRACKET tuplesTY RBRACKET
-      { TyTuple $2 }
   | LIST LCOR ty RCOR 
       { TyList $3 }
 
 
-recordTY:
-  |        { [] }
-  | noemptyrecordTY { $1 }
   
-noemptyrecordTY:
-  | STRINGV COLON ty {[$1,$3]}
-  | STRINGV COLON ty COMMA noemptyrecordTY {($1,$3)::$5}
-
-tuplesTY:
-  | ty { [$1] }
-  | ty COMMA tuplesTY { $1::$3 }   

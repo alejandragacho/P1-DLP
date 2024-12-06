@@ -8,34 +8,27 @@ open Lexer;;
 open String;;
 open Str;;
 
+
 let build_multiline input =
-  (* Crear la libreta (Buffer) para guardar las líneas *)
+  
   let buffer = Buffer.create 100 in
-
-  (* Escribir la primera línea en la libreta *)
   Buffer.add_string buffer (String.trim input);
-
-  (* Aquí comienza el bucle para pedir más líneas si es necesario *)
   let rec loop () =
-    (* Verifica si la última línea escrita termina con ";;" *)
     if String.ends_with ~suffix:";;" (Buffer.contents buffer) then
       let result = Buffer.contents buffer in
-      String.sub result 0 (String.length result - 2)  (* Si termina, junta todo y devuelve la historia *)
+      String.sub result 0 (String.length result - 2) 
     else begin
-      print_string "  ";  (* Pide otra línea mostrando un espacio como prompt *)
+      print_string "  ";  
       flush stdout;
-
-      (* Lee una nueva línea y guárdala en la libreta *)
       let next_line = read_line () in
-      Buffer.add_char buffer ' ';  (* Añade un espacio entre líneas *)
+      Buffer.add_char buffer ' ';  
       Buffer.add_string buffer (String.trim next_line);
 
-      loop ()  (* Repite el proceso *)
+      loop ()  
     end
   in
-  loop ()  (* Inicia el bucle *)
+  loop ()  
 ;;
-
 
 
 let top_level_loop () =
@@ -45,9 +38,9 @@ let top_level_loop () =
     flush stdout;
     try
       let line = trim (read_line ()) in
-      if String.length line = 0 then loop (vctx, tctx)
+      if length line = 0 then loop (vctx, tctx)
       else let whole_line = build_multiline line in
-      let c = s token (Lexing.from_string whole_line) in
+      let c = s token (from_string(whole_line)) in
       loop (execute (vctx, tctx) c)
     with
        Lexical_error ->
@@ -65,7 +58,6 @@ let top_level_loop () =
   in
     loop (emptyctx, emptyctx)
   ;;
-
 
 top_level_loop ()
 ;;
