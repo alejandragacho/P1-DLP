@@ -27,12 +27,12 @@ rule token = parse
   | "Unit"      { UNIT }
   | "()"        { UNITV }
   | "unit"      { UNITV }
-  | '['         { LCOR }
-  | ']'         { RCOR }
+  | '['         { LBRACKET }
+  | ']'         { RBRACKET }
   | '('         { LPAREN }
   | ')'         { RPAREN }
-  | '{'         { LBRACKET }
-  | '}'         { RBRACKET }
+  | '{'         { LBRACE }
+  | '}'         { RBRACE }
   | "List"      { LIST }
   | "nil"       { NIL }
   | "cons"      { CONS }

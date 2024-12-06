@@ -21,12 +21,12 @@
 %token STRING
 %token UNIT
 %token UNITV
-%token LCOR
-%token RCOR
-%token LPAREN
-%token RPAREN
 %token LBRACKET
 %token RBRACKET
+%token LPAREN
+%token RPAREN
+%token LBRACE
+%token RBRACE
 %token LIST
 %token NIL
 %token CONS
@@ -96,15 +96,15 @@ appTerm :
       { TmApp ($1, $2) }
   | QM STRINGV QM 
       { TmString $2 }
-  | CONS LCOR ty RCOR pathTerm pathTerm
+  | CONS LBRACKET ty RBRACKET pathTerm pathTerm
      { TmCons ($3,$5,$6) }
-  | ISNIL LCOR ty RCOR pathTerm
+  | ISNIL LBRACKET ty RBRACKET pathTerm
      { TmIsNil ($3,$5) }
-  | HEAD LCOR ty RCOR pathTerm
+  | HEAD LBRACKET ty RBRACKET pathTerm
      { TmHead ($3,$5) }
-  | TAIL LCOR ty RCOR pathTerm
+  | TAIL LBRACKET ty RBRACKET pathTerm
      { TmTail ($3,$5) }
-  | NIL LCOR ty RCOR
+  | NIL LBRACKET ty RBRACKET
      { TmNil ($3) }
 
 pathTerm :
@@ -137,9 +137,9 @@ atomicTerm :
         in f $1 }
   | UNITV 
       { TmUnit }
-  | LBRACKET recordTM RBRACKET
+  | LBRACE recordTM RBRACE
      {TmRecord $2}
-  | LBRACKET tuplesTM RBRACKET
+  | LBRACE tuplesTM RBRACE
      { TmTuple $2 }
 
 recordTM:
@@ -163,7 +163,7 @@ ty :
 atomicTy :
     LPAREN ty RPAREN  
       { $2 } 
-  | LCOR ty RCOR 
+  | LBRACKET ty RBRACKET 
       { $2 }
   | BOOL
       { TyBool }
@@ -173,11 +173,11 @@ atomicTy :
       { TyString }
   | UNIT
       { TyUnit }
-  | LBRACKET recordTY RBRACKET
+  | LBRACE recordTY RBRACE
       { TyRecord $2 }
-  | LBRACKET tuplesTY RBRACKET
+  | LBRACE tuplesTY RBRACE
       { TyTuple $2 }
-  | LIST LCOR ty RCOR 
+  | LIST LBRACKET ty RBRACKET
       { TyList $3 }
 
 recordTY:
