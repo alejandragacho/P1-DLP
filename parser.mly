@@ -63,7 +63,7 @@ termS:
      term
        { $1 }
      | termS SEMICOLON term
-      {TmApp(TmAbs("_",TyUnit, $3), $1)}
+       { TmApp(TmAbs("_",TyUnit, $3), $1) }
 
 term :
     appTerm
@@ -97,22 +97,22 @@ appTerm :
   | QM STRINGV QM 
       { TmString $2 }
   | CONS LBRACKET ty RBRACKET pathTerm pathTerm
-     { TmCons ($3,$5,$6) }
+      { TmCons ($3,$5,$6) }
   | ISNIL LBRACKET ty RBRACKET pathTerm
-     { TmIsNil ($3,$5) }
+      { TmIsNil ($3,$5) }
   | HEAD LBRACKET ty RBRACKET pathTerm
-     { TmHead ($3,$5) }
+      { TmHead ($3,$5) }
   | TAIL LBRACKET ty RBRACKET pathTerm
-     { TmTail ($3,$5) }
+      { TmTail ($3,$5) }
   | NIL LBRACKET ty RBRACKET
-     { TmNil ($3) }
+      { TmNil ($3) }
 
 pathTerm :
    | pathTerm DOT INTV
-      { TmProjection ($1, (string_of_int $3))}
+      { TmProjection ($1, (string_of_int $3)) }
       
    | pathTerm DOT STRINGV
-      { TmProjection ($1,$3)}
+      { TmProjection ($1,$3) }
 
    | atomicTerm
       { $1 } 
@@ -123,23 +123,23 @@ atomicTerm :
   | ID EQ term
       { $3 }
   | TRUE
-      {TmTrue}
+      { TmTrue }
   | FALSE
       { TmFalse }
   | STRINGV
       { TmVar $1 }
   | STRINGT 
-      {TmString $1}
+      { TmString $1 }
   | INTV
       { let rec f = function
             0 -> TmZero
           | n -> TmSucc (f (n-1))
         in f $1 }
   | UNITV 
-      { TmUnit }
+     { TmUnit }
   | LBRACE recordTM RBRACE
-     {TmRecord $2}
-  | LBRACE tuplesTM RBRACE
+     { TmRecord $2 }
+  | LBRACE tupleTM RBRACE
      { TmTuple $2 }
 
 recordTM:
@@ -150,9 +150,9 @@ noemptyrecordTM:
    | STRINGV EQ term {[$1,$3]}
    | STRINGV EQ term COMMA noemptyrecordTM {($1,$3)::$5}
 
-tuplesTM:
+tupleTM:
    | term { [$1] }
-   | term COMMA tuplesTM { $1::$3 }
+   | term COMMA tupleTM { $1::$3 }
 
 ty :
     atomicTy
