@@ -251,7 +251,7 @@ let rec typeof ctx tm = match tm with
       in TyTuple (get_types tmt)
       
     (* T-Projection *)
-    | TmProjection (t, n) ->
+  | TmProjection (t, n) ->
       (match (typeof ctx t, n) with
           | TyRecord tyr, s -> 
               (try List.assoc s tyr with
@@ -260,39 +260,36 @@ let rec typeof ctx tm = match tm with
               (try List.nth tyr (int_of_string s - 1) with
               _ -> raise (Type_error ("Projection error. Key " ^ s ^ " doesn't exist in the tuple")))
           | _ -> raise (Type_error ("Projection error. Type can't be projected")))
-    
+ 
     (* T-Record *)
-   | TmRecord tmr ->
+  | TmRecord tmr ->
        let rec get_types = function
            [] -> []
            | (s, tm)::t -> (s, typeof ctx tm) :: get_types t
        in TyRecord (get_types tmr)
 
-   | TmNil ty -> TyList ty
+  | TmNil ty -> TyList ty
     (* T-Cons *)
-   | TmCons (ty,h,t) ->
-    let tyTh = typeof ctx h in
-      let tyTt = typeof ctx t in
-         if (subtypeof tyTh ty) && (subtypeof tyTt (TyList(ty))) then 
-            TyList(ty) else raise (Type_error "elements of list have 
-          different types")
+  | TmCons (ty,h,t) ->
+      let tyTh = typeof ctx h in
+          let tyTt = typeof ctx t in
+             if (subtypeof tyTh ty) && (subtypeof tyTt (TyList(ty))) then 
+              TyList(ty) else raise (Type_error "elements of list have different types")
           
     (* T-IsNil *)
-   | TmIsNil (ty,t) ->
-    if typeof ctx t = TyList(ty) then TyBool
-    else raise (Type_error ("argument of is empty is not a " ^ "List[" ^ (string_of_ty ty) ^ "]"))
+  | TmIsNil (ty,t) ->
+      if typeof ctx t = TyList(ty) then TyBool
+      else raise (Type_error ("argument of is empty is not a " ^ "List[" ^ (string_of_ty ty) ^ "]"))
 
    (* T-Head *)
-   | TmHead (ty,t) ->
-    if typeof ctx t = TyList(ty) then ty
-    else raise (Type_error ("argument of head is not a " ^ "List[" ^ (string_of_ty ty) ^ "]"))
+  | TmHead (ty,t) ->
+      if typeof ctx t = TyList(ty) then ty
+      else raise (Type_error ("argument of head is not a " ^ "List[" ^ (string_of_ty ty) ^ "]"))
     
    (* T-Tail *)
-   | TmTail (ty,t) ->
-    if typeof ctx t = TyList(ty) then TyList(ty)
-    else raise (Type_error ("argument of tail is not a " ^ "List[" ^ (string_of_ty ty) ^ "]"))
-     
-   
+  | TmTail (ty,t) ->
+      if typeof ctx t = TyList(ty) then TyList(ty)
+      else raise (Type_error ("argument of tail is not a " ^ "List[" ^ (string_of_ty ty) ^ "]"))
 ;;
 
 
@@ -346,7 +343,7 @@ let rec string_of_term ?(prec=0) = function
           | tm::t -> string_of_term tm ^ ", " ^ print t
       in "{" ^ print tmt ^ "}"
   | TmProjection (t, n) ->
-      string_of_term t ^ "."  ^ n
+      string_of_term t ^ "." ^ n
   | TmRecord tmr ->
       let rec print = function
           [] -> ""
@@ -609,49 +606,50 @@ let rec eval1 vctx tm = match tm with
     (try get_global_def id
     with Type_error _ -> raise (Type_error ("Unbound variable: " ^ id)))
 
-  (*E-Cons2*)
+  (* E-Cons2 *)
 | TmCons(ty, h, t) when isval h -> TmCons(ty, h, (eval1 vctx t))
 
-  (*E-Cons1*)
+  (* E-Cons1 *)
 | TmCons(ty, h, t) -> TmCons(ty,(eval1 vctx h),t)
 
-  (*E-IsNilNil*)
+  (* E-IsNilNil *)
 | TmIsNil(ty, TmNil(_)) -> TmTrue
 
-  (*E-IsNilCons*)
+  (* E-IsNilCons *)
 | TmIsNil(ty, TmCons(_, _, _)) -> TmFalse
 
-  (*E-IsNil*)
+  (* E-IsNil *)
 | TmIsNil(ty, t) -> TmIsNil(ty, eval1 vctx t)
 
-  (*E-HeadCons*)
+  (* E-HeadCons *)
 | TmHead (_, t) when isval t ->
   get_head t
 
-  (*E-Head*)
+  (* E-Head *)
 | TmHead (ty, t) ->
   TmHead (ty, eval1 vctx t)
 
-  (*E-TailCons*)
+  (* E-TailCons *)
 | TmTail (_, t) when isval t ->
   get_tail t
 
-  (*E-Tail*)
+  (* E-Tail *)
 | TmTail(ty,t) -> TmTail(ty,eval1 vctx t)
-    
-| TmProjection (TmRecord l as v , s) when isval(v) -> 
-  List.assoc s l 
+
+
+  | TmProjection (TmRecord l as v , s) when isval(v) -> 
+      List.assoc s l 
 
   (*E-ProjRecord*)
-| TmProjection (TmRecord (tmr), n) ->
-   List.assoc n tmr 
+  | TmProjection (TmRecord (tmr), n) ->
+      List.assoc n tmr 
    
   (*E-Proj*)
-| TmProjection (TmTuple l as v , s) when isval(v) -> 
-  List.nth l (int_of_string s - 1)
+  | TmProjection (TmTuple l as v , s) when isval(v) -> 
+      List.nth l (int_of_string s - 1)
 
-| TmProjection (t,n) ->
-  TmProjection ((eval1 vctx t), n)
+  | TmProjection (t,n) ->
+      TmProjection ((eval1 vctx t), n)
 
 | TmTuple tml ->
   let rec eval_rcd = function
