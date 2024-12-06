@@ -42,7 +42,6 @@
 %token QM
 %token CONCAT 
 
-
 %token <string> ID
 %token <int> INTV
 %token <string> STRINGV
@@ -65,7 +64,6 @@ termS:
      | termS SEMICOLON term
       {TmApp(TmAbs("_",TyUnit, $3), $1)}
 
-
 term :
     appTerm
       { $1 }
@@ -81,11 +79,6 @@ term :
       { TmString $1 }  
   | term CONCAT term
       { TmConcat ($1, $3) }  
-
-
-
-
-
 
 appTerm :
     pathTerm
@@ -112,8 +105,6 @@ appTerm :
      { TmTail ($3,$5) }
   | NIL LCOR ty RCOR
      { TmNil ($3) }
-  
-
 
 pathTerm :
    | pathTerm DOT INTV
@@ -124,7 +115,6 @@ pathTerm :
 
    | atomicTerm
       { $1 } 
-
 
 atomicTerm :
     LPAREN term RPAREN
@@ -146,27 +136,22 @@ atomicTerm :
         in f $1 }
   | UNITV 
       { TmUnit }
-  |LBRACKET recordTM RBRACKET
+  | LBRACKET recordTM RBRACKET
      {TmRecord $2}
-  |LBRACKET tuplesTM RBRACKET
+  | LBRACKET tuplesTM RBRACKET
      { TmTuple $2 }
 
-     
 recordTM:
-   |          { [] } 
-   |noemptyrecordTM { $1 }
-   
+   | { [] } 
+   | noemptyrecordTM { $1 }
 
 noemptyrecordTM:
-   |STRINGV EQ term {[$1,$3]}
-   |STRINGV EQ term COMMA noemptyrecordTM {($1,$3)::$5}
-
-
+   | STRINGV EQ term {[$1,$3]}
+   | STRINGV EQ term COMMA noemptyrecordTM {($1,$3)::$5}
 
 tuplesTM:
    | term { [$1] }
    | term COMMA tuplesTM { $1::$3 }
-
 
 ty :
     atomicTy
@@ -194,11 +179,10 @@ atomicTy :
   | LIST LCOR ty RCOR 
       { TyList $3 }
 
-
 recordTY:
-  |        { [] }
+  | { [] }
   | noemptyrecordTY { $1 }
-  
+
 noemptyrecordTY:
   | STRINGV COLON ty {[$1,$3]}
   | STRINGV COLON ty COMMA noemptyrecordTY {($1,$3)::$5}
