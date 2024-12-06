@@ -20,6 +20,7 @@ rule token = parse
   | "let"       { LET }
   | "letrec"    { LETREC }
   | "in"        { IN }
+  | "concat"    { CONCAT }
   | "Bool"      { BOOL }
   | "Nat"       { NAT }
   | "String"    { STRING }

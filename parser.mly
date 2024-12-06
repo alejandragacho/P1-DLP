@@ -15,6 +15,7 @@
 %token LET
 %token LETREC
 %token IN
+%token CONCAT
 %token BOOL
 %token NAT
 %token STRING
