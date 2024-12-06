@@ -536,10 +536,17 @@ let rec eval1 vctx tm = match tm with
     TmSucc t1'
 
   (* E-Concat *)
-| TmConcat (t1, t2) when not (isval t1) -> TmConcat (eval1 vctx t1, t2)
- 
-| TmConcat (t1, t2) -> TmConcat (t1, eval1 vctx t2)
-    
+| TmConcat (TmString s1, TmString s2) -> 
+    TmString (s1 ^ s2)
+
+| TmConcat (TmString s1, t2) ->
+    let t2' = eval1 vctx t2 in
+        TmConcat (TmString s1, t2')
+
+| TmConcat (t1, t2) ->
+    let t1' = eval1 vctx t1 in
+        TmConcat (t1', t2)
+
   (* E-PredZero *)
 | TmPred TmZero ->
     TmZero
