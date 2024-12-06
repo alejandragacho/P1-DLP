@@ -1,0 +1,10 @@
+...
+
+2.4 STRING TYPE
+"This is a string";;
+x = "str";;
+y = "ing";;
+concat x y;;
+concat "fix " "you";;
+
+...
