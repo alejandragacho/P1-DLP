@@ -292,6 +292,11 @@ let rec typeof ctx tm = match tm with
       else raise (Type_error ("argument of tail is not a " ^ "List[" ^ (string_of_ty ty) ^ "]"))
 ;;
 
+let rec term_to_int tm =
+  match tm with
+  | TmZero -> 0
+  | TmSucc t -> 1 + term_to_int t
+  | _ -> raise (Type_error "Not a numeric value")
 
 (* Pretty-printer for terms *)
 let rec string_of_term ?(prec=0) = function
@@ -302,13 +307,19 @@ let rec string_of_term ?(prec=0) = function
       let then_branch = string_of_term ~prec:0 t2 in
       let else_branch = string_of_term ~prec:0 t3 in
       "if " ^ cond ^ " then " ^ then_branch ^ " else " ^ else_branch
-  | TmZero -> "0"
+  | TmZero ->
+      (try
+          string_of_int (term_to_int TmZero)
+      with Type_error _ -> "0")    
   | TmSucc t ->
-    let inner = string_of_term ~prec:3 t in
-    if prec > 2 then
-      "(succ " ^ inner ^ ")"
-    else
-      "succ " ^ inner
+      (try
+          string_of_int (term_to_int (TmSucc t))
+      with Type_error _ ->
+          let inner = string_of_term ~prec:3 t in
+          if prec > 2 then
+              "(succ " ^ inner ^ ")"
+          else
+              "succ " ^ inner)
   | TmPred t ->
       let inner = string_of_term ~prec:3 t in
       "pred " ^ inner
