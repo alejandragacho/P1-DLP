@@ -650,7 +650,6 @@ let rec eval1 vctx tm = match tm with
   (* E-Tail *)
 | TmTail(ty,t) -> TmTail(ty,eval1 vctx t)
 
-
 | TmProjection (TmRecord l as v , s) when isval(v) -> 
     List.assoc s l 
 

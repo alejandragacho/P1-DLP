@@ -1,10 +1,37 @@
-...
+2.1 RECOGNITION OF MULTI-LINE EXPRESSIONS
+"Check
+this
+multi-line!";;
+
+2.2 INTERNAL FIXED POINT COMBINER
+
+
+2.3 CONTEXT OF GLOBAL DEFINITIONS
+
 
 2.4 STRING TYPE
 "This is a string";;
 x = "str";;
 y = "ing";;
 concat x y;;
-concat "fix " "you";;
+concat "Thank" "you";;
 
-...
+2.5 TUPLES
+tuple = {42, false, "car", {1, "kids", true}};;
+tuple.1;;
+tuple.4;;
+concat tuple.3 tuple.4.2;;
+
+3.1 PRETTY-PRINTER
+
+
+3.2 RECORDS
+
+
+3.3 VARIANTS
+
+
+3.4 LISTS
+
+
+3.5 SUBTYPING

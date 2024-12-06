@@ -73,31 +73,31 @@ term :
       { TmLetIn ($2, TmFix (TmAbs ($2, $4, $6)), $8) }
 
 appTerm :
-    pathTerm
+    projectionTerm
       { $1 }
-  | SUCC pathTerm
+  | SUCC projectionTerm
       { TmSucc $2 }
-  | PRED pathTerm
+  | PRED projectionTerm
       { TmPred $2 }
-  | ISZERO pathTerm
+  | ISZERO projectionTerm
       { TmIsZero $2 }
-  | CONCAT pathTerm pathTerm
+  | CONCAT projectionTerm projectionTerm
       { TmConcat ($2, $3) }
-  | appTerm pathTerm
+  | appTerm projectionTerm
       { TmApp ($1, $2) }
-  | CONS LBRACKET ty COLON pathTerm COMMA pathTerm RBRACKET
+  | CONS LBRACKET ty COLON projectionTerm COMMA projectionTerm RBRACKET
       { TmCons ($3, $5, $7) }
-  | HEAD LBRACKET ty RBRACKET pathTerm
+  | HEAD LBRACKET ty RBRACKET projectionTerm
       { TmHead ($3, $5) }
-  | TAIL LBRACKET ty RBRACKET pathTerm
+  | TAIL LBRACKET ty RBRACKET projectionTerm
       { TmTail ($3, $5) }
   | NIL LBRACKET ty RBRACKET
       { TmNil ($3) }
 
-pathTerm :
-  | pathTerm DOT INTV
+projectionTerm :
+  | projectionTerm DOT INTV
       { TmProjection ($1, (string_of_int $3)) }
-  | pathTerm DOT IDV
+  | projectionTerm DOT IDV
       { TmProjection ($1, $3) }
   | atomicTerm
       { $1 }
