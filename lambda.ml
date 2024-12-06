@@ -521,6 +521,7 @@ let rec isval tm = match tm with
   | TmRecord [] -> true
   | TmNil _ -> true
   | TmRecord l -> List.for_all(fun (s, t) -> isval(t)) l
+  | TmString _ -> true
   | _ -> false
 ;;
 
