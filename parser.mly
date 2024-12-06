@@ -15,18 +15,18 @@
 %token LET
 %token LETREC
 %token IN
+%token CONCAT
 %token BOOL
 %token NAT
-
 %token STRING
 %token UNIT
 %token UNITV
-%token LCOR
-%token RCOR
+%token LBRACKET
+%token RBRACKET
 %token LPAREN
 %token RPAREN
-%token LBRACKET
-%token RBRACKET 
+%token LBRACE
+%token RBRACE
 %token LIST
 %token NIL
 %token CONS
@@ -41,13 +41,11 @@
 %token ARROW
 %token EOF
 %token QM
-%token CONCAT 
+%token CONCAT
 
-
-%token <string> ID
 %token <int> INTV
+%token <string> IDV
 %token <string> STRINGV
-%token <string> STRINGT
 
 %start s
 %type <Lambda.command> s
@@ -55,26 +53,21 @@
 %%
 
 s :
-    STRINGV EQ termS EOF 
-      { Bind ($1, $3)}
-  | termS EOF
+  term EOF
       { Eval $1 }
-
-termS:
-     term
-       { $1 }
-     | termS SEMICOLON term
-      {TmApp(TmAbs("_",TyUnit, $3), $1)}
-
+  | IDV EQ term EOF
+      { Bind ($1, $3) }
 
 term :
-    appTerm
-      { $1 }
+  appTerm
+      { $1 }  
   | IF term THEN term ELSE term
       { TmIf ($2, $4, $6) }
-  | LAMBDA STRINGV COLON ty DOT term
+  | LAMBDA IDV COLON ty DOT term
       { TmAbs ($2, $4, $6) }
-  | LET STRINGV EQ term IN term
+  | LAMBDA IDV DOT term
+      { TmAbs ($2, TyNat, $4) }
+  | LET IDV EQ term IN term
       { TmLetIn ($2, $4, $6) }
   | LETREC STRINGV COLON ty EQ term IN term
       { TmLetRec ($2, $4, $6, $8) } 
@@ -82,85 +75,117 @@ term :
 
 
 appTerm :
-    pathTerm
+    projectionTerm
       { $1 }
-  | SUCC pathTerm
+  | SUCC projectionTerm
       { TmSucc $2 }
-  | PRED pathTerm
+  | PRED projectionTerm
       { TmPred $2 }
-  | ISZERO pathTerm
+  | ISZERO projectionTerm
       { TmIsZero $2 }
-  | pathTerm CONCAT pathTerm
-      { TmConcat ($1, $3) }
-  | appTerm pathTerm
+  | CONCAT projectionTerm projectionTerm
+      { TmConcat ($2, $3) }
+  | appTerm projectionTerm
       { TmApp ($1, $2) }
   | QM STRINGV QM 
       { TmString $2 }
-  | CONS LCOR ty RCOR pathTerm pathTerm
-     { TmCons ($3,$5,$6) }
-  | ISNIL LCOR ty RCOR pathTerm
-     { TmIsNil ($3,$5) }
-  | HEAD LCOR ty RCOR pathTerm
-     { TmHead ($3,$5) }
-  | TAIL LCOR ty RCOR pathTerm
-     { TmTail ($3,$5) }
-  | NIL LCOR ty RCOR
-     { TmNil ($3) }
+  | CONS LBRACKET ty COLON projectionTerm COMMA projectionTerm RBRACKET
+      { TmCons ($3, $5, $7) }
+  | HEAD LBRACKET ty RBRACKET projectionTerm
+      { TmHead ($3, $5) }
+  | TAIL LBRACKET ty RBRACKET projectionTerm
+      { TmTail ($3, $5) }
+  | NIL LBRACKET ty RBRACKET
+      { TmNil ($3) }
+ 
   
 
 
 pathTerm :
    
-      
-
-
    | atomicTerm
       { $1 } 
+ 
 
+projectionTerm :
+  | projectionTerm DOT INTV
+      { TmProjection ($1, (string_of_int $3)) }
+  | projectionTerm DOT IDV
+      { TmProjection ($1, $3) }
+  | atomicTerm
+      { $1 }
 
 atomicTerm :
-    LPAREN term RPAREN
-      { $2 }   
-  | ID EQ term
-      { $3 }
+  LPAREN term RPAREN
+      { $2 }
   | TRUE
-      {TmTrue}
+      { TmTrue }
   | FALSE
       { TmFalse }
-  | STRINGV
+  | IDV
       { TmVar $1 }
-  | STRINGT 
-      {TmString $1}
   | INTV
       { let rec f = function
             0 -> TmZero
           | n -> TmSucc (f (n-1))
         in f $1 }
-  | UNITV 
-      { TmUnit }
+  | STRINGV
+      { TmString $1 }
+  | LBRACE tuple RBRACE
+      { TmTuple $2 }
+  | LBRACE record RBRACE
+      { TmRecord $2 }
 
+tuple :
+  | term { [$1] }
+  | term COMMA tuple { $1::$3 }
+
+record :
+  | { [] }
+  | noEmptyRecord { $1 }
+
+noEmptyRecord :
+  | IDV EQ term { [$1,$3] }
+  | IDV EQ term COMMA noEmptyRecord { ($1,$3)::$5 }
 
 ty :
-    atomicTy
+  atomicTy
       { $1 }
   | atomicTy ARROW ty
       { TyArr ($1, $3) }
 
 atomicTy :
-    LPAREN ty RPAREN  
-      { $2 } 
-  | LCOR ty RCOR 
+  LPAREN ty RPAREN
       { $2 }
   | BOOL
       { TyBool }
   | NAT
       { TyNat }
-  | STRING 
+  | STRING
       { TyString }
-  | UNIT
-      { TyUnit }
-  | LIST LCOR ty RCOR 
+  | LBRACE tupleTy RBRACE
+      { TyTuple $2 }
+  | LBRACE recordTy RBRACE
+      { TyRecord $2 }
+  | LIST LBRACKET ty RBRACKET
       { TyList $3 }
 
+tupleTy :
+    | ty { [$1] }
+    | ty COMMA tupleTy { $1::$3 }
 
-  
+recordTy : 
+    | { [] }
+    | noEmptyRecordTy { $1 }
+
+noEmptyRecordTy:
+    | IDV COLON ty { [$1,$3] }
+    | IDV COLON ty COMMA noEmptyRecordTy { ($1,$3)::$5 }
+
+var :
+  | term { [$1] }
+  | term COMMA var { $1::$3 }
+
+noEmptyVar :
+  | IDV COLON ty { [$1,$3] }
+  | IDV COLON ty COMMA noEmptyVar { ($1,$3)::$5 }

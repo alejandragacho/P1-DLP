@@ -1,0 +1,70 @@
+2.1 RECOGNITION OF MULTI-LINE EXPRESSIONS
+"Check
+this
+multi-line!";;
+
+2.2 INTERNAL FIXED POINT COMBINER
+2.2.1 PRODUCT (expected: Nat = 42)
+letrec sum : Nat -> Nat -> Nat =
+  lambda n : Nat. lambda m : Nat. if iszero n then m
+  else succ (sum (pred n) m) in
+  letrec prod : Nat -> Nat -> Nat =
+    lambda n : Nat. lambda m : Nat. if iszero n then 0
+    else sum (prod (pred n) m) m in
+  prod 6 7;;
+
+2.2.2 FIBONACCI (expected: Nat = 21)
+letrec sum : Nat -> Nat -> Nat =
+  lambda n : Nat. lambda m : Nat. if iszero n then m
+  else succ (sum (pred n) m) in
+  letrec fib: Nat -> Nat =
+    lambda n : Nat. if iszero n then 0 else if iszero (pred n) then 1
+    else sum(fib (pred (pred n))) (fib (pred n)) in
+  fib 8;;
+
+2.2.3 FACTORIAL (expected: Nat = 120)
+letrec sum : Nat -> Nat -> Nat =
+  lambda n : Nat. lambda m : Nat. if iszero n then m
+  else succ (sum (pred n) m) in
+  letrec prod : Nat -> Nat -> Nat =
+    lambda n : Nat. lambda m : Nat. if iszero n then 0
+    else sum (prod (pred n) m) m in
+    letrec fac: Nat -> Nat =
+      lambda n : Nat. if iszero n then 1
+      else prod n (fac (pred n))
+    in fac 5;;
+
+2.3 CONTEXT OF GLOBAL DEFINITIONS
+///////////////////////////////////////////////////////////// ESTO FALTA!!
+
+2.4 STRING TYPE
+"This is a string";;
+x = "str";;
+y = "ing";;
+concat x y;;
+concat "Thank" "you";;
+
+2.5 TUPLES
+tuple = {42, false, "car", {1, "kids", true}};;
+tuple.1;;
+tuple.4;;
+concat tuple.3 tuple.4.2;;
+
+3.1 PRETTY-PRINTER
+///////////////////////////////////////////////////////////// ESTO FALTA!!
+
+3.2 RECORDS
+x = 42;;
+y = "dance";;
+z = {a = x, b = true, c = y};;
+z.a;;
+z.c;;
+
+3.3 VARIANTS
+-
+
+3.4 LISTS
+///////////////////////////////////////////////////////////// ESTO FALTA!!
+
+3.5 SUBTYPING
+///////////////////////////////////////////////////////////// ESTO FALTA!!

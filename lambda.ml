@@ -73,6 +73,31 @@ let getdef def x =
 List.assoc x def
 ;;
 
+let global_context : (string, term) Hashtbl.t = Hashtbl.create 100;;
+
+let add_global_def id term =
+Hashtbl.replace global_context id term
+;;
+
+let get_global_def id =
+    try Hashtbl.find global_context id
+    with Not_found -> failwith ("Undefined global: " ^ id)
+  ;;
+
+(* LISTS IMPLEMENTATION *)
+let is_nil t = match t with
+  | TmNil _ -> true
+  | _ -> false
+
+let get_head t = match t with
+  | TmCons (_, h, _) -> h
+  | _ -> raise (Type_error "Cannot get head of a non-list")
+
+let get_tail t = match t with
+  | TmCons (_, _, t) -> t
+  | _ -> raise (Type_error "Cannot get tail of a non-list")
+
+
 
 (* TYPE MANAGEMENT (TYPING) *)
 
@@ -172,9 +197,47 @@ let rec pretty_print ?(parent_priority=0) term =
 exception Type_error of string
 ;;
 
-let rec subtypeof tm1 tm2 = match (tm1, tm2) with
+(*let rec subtypeof tm1 tm2 = match (tm1, tm2) with
   | (TyArr(s1, s2), TyArr(t1, t2)) -> ((subtypeof s1 t1) && (subtypeof t2 s2))
   | (tm1, tm2) -> tm1 = tm2
+  | TyTuple tyr ->
+      let rec print = function
+          [] -> ""
+          | ty::[] -> string_of_ty ty
+          | ty::t -> string_of_ty ty ^ ", " ^ print t
+      in "{" ^ print tyr ^ "}"
+  | TyRecord tyr ->
+      let rec print = function
+          [] -> ""
+          | (s, ty)::[] -> s ^ ":" ^ string_of_ty ty
+          | (s, ty)::t -> s ^ ":" ^ string_of_ty ty ^ "," ^ print t
+      in "{" ^ print tyr ^ "}"
+  | TyList ty -> "List[" ^ string_of_ty ty ^ "]"
+;;
+*)
+
+(* Subtyping *)
+let rec subtypeof tm1 tm2 = 
+  match (tm1, tm2) with
+  | (TyArr (s1, s2), TyArr (t1, t2)) ->
+      subtypeof_functions s1 s2 t1 t2
+  | (TyRecord l1, TyRecord l2) ->
+      subtypeof_records l1 l2
+  | (tm1, tm2) ->
+      tm1 = tm2
+
+(* Subtyping for functions *)
+and subtypeof_functions s1 s2 t1 t2 =
+  subtypeof t1 s1 && subtypeof s2 t2
+
+(* Subtyping for records *)
+and subtypeof_records l1 l2 =
+  let rec check_field (field, ty) l =
+    match List.assoc_opt field l with
+    | Some ty2 -> subtypeof ty ty2
+    | None -> false
+  in
+  List.for_all (fun field_ty -> check_field field_ty l2) l1
 ;;
 
 let rec typeof ctx tm = match tm with
@@ -302,8 +365,85 @@ else
     if typeof ctx t = TyList(ty) then TyList(ty)
     else raise (Type_error ("argument of tail is not a " ^ "List[" ^ (string_of_ty ty) ^ "]"))
      
+    (* T-Let *)
+  | TmLetIn (x, t1, t2) ->
+      let tyT1 = typeof ctx t1 in
+      let ctx' = addbinding ctx x tyT1 in
+      typeof ctx' t2
+	  
+    (* T-Fix *)
+  | TmFix t1 ->
+      let tyT1 = typeof ctx t1 in
+	  (match tyT1 with
+	       TyArr (tyT11, tyT12) ->
+		     if tyT11 = tyT12 then tyT12
+			 else raise (Type_error "result of body not compatible with domain")
+	  | _ -> raise (Type_error "arrow type expected"))
+
+	  
+    (* New rules for string *)
+  | TmString _ ->
+      TyString
+      
+    (* T-Concat *)
+  | TmConcat (t1, t2) ->
+      if typeof ctx t1 = TyString && typeof ctx t2 = TyString then TyString
+	  else raise (Type_error "argument of concat is not a string")
+
+    (* T-Tuple *)
+  | TmTuple tmt ->
+      let rec get_types = function
+          [] -> []
+          | tm::t -> typeof ctx tm :: get_types t
+      in TyTuple (get_types tmt)
+      
+    (* T-Projection *)
+  | TmProjection (t, n) ->
+      (match (typeof ctx t, n) with
+          | TyRecord tyr, s -> 
+              (try List.assoc s tyr with
+              _ -> raise (Type_error ("Projection error. Key " ^ s ^ " doesn't exist in the record")))
+          | TyTuple tyr, s ->
+              (try List.nth tyr (int_of_string s - 1) with
+              _ -> raise (Type_error ("Projection error. Key " ^ s ^ " doesn't exist in the tuple")))
+          | _ -> raise (Type_error ("Projection error. Type can't be projected")))
+ 
+    (* T-Record *)
+  | TmRecord tmr ->
+       let rec get_types = function
+           [] -> []
+           | (s, tm)::t -> (s, typeof ctx tm) :: get_types t
+       in TyRecord (get_types tmr)
+
+  | TmNil ty -> TyList ty
+    (* T-Cons *)
+  | TmCons (ty,h,t) ->
+      let tyTh = typeof ctx h in
+          let tyTt = typeof ctx t in
+             if (subtypeof tyTh ty) && (subtypeof tyTt (TyList(ty))) then 
+              TyList(ty) else raise (Type_error "elements of list have different types")
+          
+    (* T-IsNil *)
+  | TmIsNil (ty,t) ->
+      if typeof ctx t = TyList(ty) then TyBool
+      else raise (Type_error ("argument of is empty is not a " ^ "List[" ^ (string_of_ty ty) ^ "]"))
+
+   (* T-Head *)
+  | TmHead (ty,t) ->
+      if typeof ctx t = TyList(ty) then ty
+      else raise (Type_error ("argument of head is not a " ^ "List[" ^ (string_of_ty ty) ^ "]"))
+    
+   (* T-Tail *)
+  | TmTail (ty,t) ->
+      if typeof ctx t = TyList(ty) then TyList(ty)
+      else raise (Type_error ("argument of tail is not a " ^ "List[" ^ (string_of_ty ty) ^ "]"))
 ;;
 
+let rec term_to_int tm =
+  match tm with
+  | TmZero -> 0
+  | TmSucc t -> 1 + term_to_int t
+  | _ -> raise (Type_error "Not a numeric value")
 
 (* TERMS MANAGEMENT (EVALUATION) *)
 
@@ -375,8 +515,6 @@ let rec free_vars tm = match tm with (* variables libres *)
     []
 | TmString _ -> 
     []
-| TmUnit ->
-    []
 | TmIf (t1, t2, t3) ->
     lunion (lunion (free_vars t1) (free_vars t2)) (free_vars t3)
 | TmZero ->
@@ -403,25 +541,31 @@ let rec free_vars tm = match tm with (* variables libres *)
     let free_in_body = free_vars body in
     lunion free_in_bodyF (ldif free_in_body [f])
 
-   
-| TmNil ty ->
-    []
-    
-| TmCons (ty,t1,t2) ->
-      lunion (free_vars t1) (free_vars t2)
-      
-| TmIsNil (ty,t) ->
-    free_vars t
-   
-| TmHead (ty,t) ->
-    free_vars t
-    
-| TmTail (ty,t) ->
-    free_vars t
-     
-
 | TmConcat (t1, t2) -> 
     lunion (free_vars t1) (free_vars t2)
+
+| TmTuple tmt ->
+      let rec get_free = function
+          [] -> []
+          | tm::t -> lunion (free_vars tm) (get_free t)
+      in get_free tmt
+| TmProjection (t, n) ->
+      free_vars t
+| TmRecord tmr ->
+      let rec get_free = function
+          [] -> []
+          | (_, tm)::t -> lunion (free_vars tm) (get_free t)
+      in get_free tmr
+| TmNil ty ->
+      []
+| TmCons (ty,t1,t2) ->
+      lunion (free_vars t1) (free_vars t2)
+| TmIsNil (ty,t) ->
+      free_vars t
+| TmHead (ty,t) ->
+      free_vars t
+| TmTail (ty,t) ->
+      free_vars t
 ;;
 
 
@@ -481,18 +625,24 @@ let rec subst x s tm = match tm with (* sustituir las apariciones de x en tm por
       let body' = subst x s body in
       TmLetRec (f, ty, bodyF', body')
 
-
-    
-    
+| TmTuple tmt ->
+      let rec sub_t = function
+          [] -> []
+          | tm::t -> (subst x s tm)::sub_t t
+      in TmTuple (sub_t tmt)
+| TmProjection (t, n) ->
+      TmProjection (subst x s t, n)
+| TmRecord tmr ->
+      let rec sub_r = function
+          [] -> []
+          | (str, tm)::t -> (str, (subst x s tm))::sub_r t
+      in TmRecord (sub_r tmr)
 | TmNil ty ->
     tm
-    
 | TmCons (ty,t1,t2) ->
       TmCons (ty, (subst x s t1), (subst x s t2))
-  
 | TmIsNil (ty,t) ->
      TmIsNil (ty, (subst x s t))
-     
 | TmHead (ty,t) ->
      TmHead (ty, (subst x s t))
      
@@ -515,12 +665,16 @@ let rec isval tm = match tm with
 | TmFalse -> true
 | TmAbs _ -> true
 | TmString _ -> true
-| TmUnit -> true
 | TmNil _ -> true
 | TmCons(_,h,t) -> (isval h) && (isval t)
 | t when isnumericval t -> true
+| TmTuple l -> List.for_all(fun t -> isval(t)) l
+| TmRecord [] -> true
+| TmRecord l -> List.for_all(fun (s, t) -> isval(t)) l
 | _ -> false
 ;;
+
+
 let concat t1 t2 = t1 ^ t2;;
 
 
@@ -628,17 +782,17 @@ let rec eval1 vctx tm = match tm with
   (*E-Cons2*)
 |TmCons(ty,h,t) when isval h -> TmCons(ty,h,(eval1 vctx t))
 
-  (*E-Cons1*)
-|TmCons(ty,h,t) -> TmCons(ty,(eval1 vctx h),t)
+  (* E-Cons1 *)
+| TmCons(ty, h, t) -> TmCons(ty,(eval1 vctx h),t)
 
-  (*E-IsNilNil*)
-|TmIsNil(ty,TmNil(_)) -> TmTrue
+  (* E-IsNilNil *)
+| TmIsNil(ty, TmNil(_)) -> TmTrue
 
-  (*E-IsNilCons*)
-|TmIsNil(ty,TmCons(_,_,_)) -> TmFalse
+  (* E-IsNilCons *)
+| TmIsNil(ty, TmCons(_, _, _)) -> TmFalse
 
-  (*E-IsNil*)
-|TmIsNil(ty,t) -> TmIsNil(ty,eval1 vctx t)
+  (* E-IsNil *)
+| TmIsNil(ty, t) -> TmIsNil(ty, eval1 vctx t)
 
   (*E-HeadCons*)
 |TmHead(ty,TmCons(_,h,_))-> h
@@ -652,10 +806,57 @@ let rec eval1 vctx tm = match tm with
   (*E-Tail*)
 |TmTail(ty,t) -> TmTail(ty,eval1 vctx t)
          
+  (* E-HeadCons *)
+| TmHead (_, t) when isval t ->
+  get_head t
+
+  (* E-Head *)
+| TmHead (ty, t) ->
+  TmHead (ty, eval1 vctx t)
+
+  (* E-TailCons *)
+| TmTail (_, t) when isval t ->
+  get_tail t
+
+  (* E-Tail *)
+| TmTail(ty, t) -> TmTail(ty, eval1 vctx t)
+
+| TmProjection (TmRecord l as v , s) when isval(v) -> 
+    List.assoc s l 
+
+ (* E-ProjRecord *)
+| TmProjection (TmRecord tmr, n) ->
+    List.assoc n tmr 
+   
+ (* E-Proj *)
+| TmProjection (TmTuple l, s) ->
+    let evaluated_tuple = List.map (eval1 vctx) l in
+    List.nth evaluated_tuple (int_of_string s - 1)
+
+| TmProjection (t, s) ->
+    let evaluated_t = eval1 vctx t in
+    (match evaluated_t with
+    | TmTuple l -> List.nth l (int_of_string s - 1)
+    | _ -> TmProjection (evaluated_t, s))
+
+| TmTuple tml ->
+  let rec eval_rcd = function
+    [] -> raise NoRuleApplies
+    | tm::t when isval tm -> tm::(eval_rcd t)
+    | tm::t -> (eval1 vctx tm)::t
+  in TmTuple (eval_rcd tml)
+   
+ (*E-Record*)
+| TmRecord tmr ->
+    let rec evalrecord = function
+      [] -> raise NoRuleApplies
+      | (str,tm)::t when isval tm -> (str,tm)::(evalrecord t)
+      | (str,tm)::t -> (str, (eval1 vctx tm))::t
+    in TmRecord (evalrecord tmr)
 
 | _ ->
     raise NoRuleApplies
-    
+
 ;;
 
 
@@ -678,9 +879,10 @@ let execute (vctx, tctx) = function
       print_endline ("- : " ^ string_of_ty tyTm ^ " = " ^ pretty_print tm');  (* Usa el pretty-printer *)
       (vctx, tctx)
   | Bind (s, tm) ->
-      let tyTm = typeof tctx tm in  (* Determina el tipo del término *)
-      let tm' = eval vctx tm in     (* Evalúa el término *)
-      let tctx' = addbinding tctx s tyTm in  (* Actualiza el contexto de tipos *)
-      print_endline (s ^ " : " ^ string_of_ty tyTm ^ " = " ^ pretty_print tm');  (* Usa el pretty-printer *)
-      (vctx, tctx')
-;;
+      let tyTm = typeof tctx tm in  (* Determine the type of term *)
+      let tm' = eval ctx tm in  (* Evaluate the term *)
+      add_global_def s tm';  (* Add to global context *)
+      let tctx' = addbinding tctx s tyTm in  (* Update the type context *)
+      print_endline (s ^ " : " ^ string_of_ty tyTm ^ " = " ^ string_of_term tm');
+      (ctx, tctx')  (* Return the new type context *)
+      ;;

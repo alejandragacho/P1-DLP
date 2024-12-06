@@ -1,5 +1,4 @@
 
-
 {
   open Parser;;
   exception Lexical_error;; 
@@ -20,39 +19,36 @@ rule token = parse
   | "let"       { LET }
   | "letrec"    { LETREC }
   | "in"        { IN }
+  | "concat"    { CONCAT }
   | "Bool"      { BOOL }
   | "Nat"       { NAT }
   | "String"    { STRING }
   | "()"        { UNITV }
-  | '['         { LCOR }
-  | ']'         { RCOR }
+  | "unit"      { UNITV }
+  | '['         { LBRACKET }
+  | ']'         { RBRACKET }
   | '('         { LPAREN }
   | ')'         { RPAREN }
-  | '{'         {LBRACKET}
-  | '}'         {RBRACKET}
-  | "List"      {LIST}
-  | "nil"       {NIL}
-  | "cons"      {CONS}
-  | "isnil"     {ISNIL}
-  | "head"      {HEAD}
-  | "tail"      {TAIL}
-  | ','         {COMMA}
+  | '{'         { LBRACE }
+  | '}'         { RBRACE }
+  | "List"      { LIST }
+  | "nil"       { NIL }
+  | "cons"      { CONS }
+  | "isnil"     { ISNIL }
+  | "head"      { HEAD }
+  | "tail"      { TAIL }
+  | ','         { COMMA }
   | ';'         { SEMICOLON }
   | '.'         { DOT }
   | '='         { EQ }
   | '^'         { CONCAT }
   | ':'         { COLON }
   | "->"        { ARROW }
-  | "\""        { QM }
   | ['0'-'9']+  { INTV (int_of_string (Lexing.lexeme lexbuf)) }
-  | ['a'-'z']['a'-'z' '_' '0'-'9']*
-                { STRINGV (Lexing.lexeme lexbuf) }
-  | '\"'[^';''\"''\'']*'\"'
-                { STRINGT (
-                  let s = Lexing.lexeme lexbuf
-                  in String.sub s 1 ((String.length s)-2)
-                ) }
-  | ['A'-'Z' 'a'-'z' '_']['A'-'Z' 'a'-'z' '_' '0'-'9' '\'']*
-                { ID (Lexing.lexeme lexbuf) }
+  | ['a'-'z' 'A'-'Z']['a'-'z' '_' '0'-'9']*
+                { IDV (Lexing.lexeme lexbuf) }
+  | '"'[^ '"' ';' '\n']*'"'
+                { let s = Lexing.lexeme lexbuf in
+                  STRINGV (String.sub s 1 (String.length s - 2)) }
   | eof         { EOF }
   | _           { raise Lexical_error } 
