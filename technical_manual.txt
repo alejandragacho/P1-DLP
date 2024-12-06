@@ -26,7 +26,11 @@ concat tuple.3 tuple.4.2;;
 
 
 3.2 RECORDS
-
+x = 42;;
+y = "dance";;
+z = {a = x, b = true, c = y};;
+z.a;;
+z.c;;
 
 3.3 VARIANTS
 

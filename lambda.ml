@@ -360,14 +360,14 @@ let rec string_of_term ?(prec=0) = function
   | TmRecord tmr ->
       let rec print = function
           [] -> ""
-          | (s, tm)::[] -> s ^ "=" ^ string_of_term tm
-          | (s, tm)::t -> s ^ "=" ^ string_of_term tm ^ "," ^ print t
+          | (s, tm)::[] -> s ^ " = " ^ string_of_term tm
+          | (s, tm)::t -> s ^ " = " ^ string_of_term tm ^ ", " ^ print t
       in "{" ^ print tmr ^ "}"
   | TmNil ty -> "nil[" ^string_of_ty ty ^ "]"
-  | TmCons (ty,h,t) -> "cons[" ^string_of_ty ty ^ "] " ^ "(" ^ string_of_term h ^ " " ^ (string_of_term t) ^ ")"
-  | TmIsNil (ty,t) -> "isnil[" ^string_of_ty ty ^ "] " ^ "(" ^ string_of_term t ^ ")" 
-  | TmHead (ty,t) -> "head[" ^string_of_ty ty ^ "] " ^ "(" ^ string_of_term t ^ ")" 
-  | TmTail (ty,t) -> "tail[" ^string_of_ty ty ^ "] " ^ "(" ^ string_of_term t ^ ")"
+  | TmCons (ty, h, t) -> "cons[" ^string_of_ty ty ^ "] " ^ "(" ^ string_of_term h ^ " " ^ (string_of_term t) ^ ")"
+  | TmIsNil (ty, t) -> "isnil[" ^string_of_ty ty ^ "] " ^ "(" ^ string_of_term t ^ ")" 
+  | TmHead (ty, t) -> "head[" ^string_of_ty ty ^ "] " ^ "(" ^ string_of_term t ^ ")" 
+  | TmTail (ty, t) -> "tail[" ^string_of_ty ty ^ "] " ^ "(" ^ string_of_term t ^ ")"
 
   | _ -> "<unknown term>"
 
