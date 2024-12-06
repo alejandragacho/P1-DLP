@@ -175,7 +175,7 @@ atomicTy :
       { TyUnit }
   | LBRACE recordTY RBRACE
       { TyRecord $2 }
-  | LBRACE tuplesTY RBRACE
+  | LBRACE tupleTY RBRACE
       { TyTuple $2 }
   | LIST LBRACKET ty RBRACKET
       { TyList $3 }
@@ -188,6 +188,6 @@ noemptyrecordTY:
   | STRINGV COLON ty {[$1,$3]}
   | STRINGV COLON ty COMMA noemptyrecordTY {($1,$3)::$5}
 
-tuplesTY:
+tupleTY:
   | ty { [$1] }
-  | ty COMMA tuplesTY { $1::$3 }   
+  | ty COMMA tupleTY { $1::$3 }   
